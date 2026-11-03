@@ -152,15 +152,15 @@ taskflow/
 **Milestone 1: Project Foundation & Auth**
 
 Tasks:
-- [ ] Initialize pnpm monorepo + NestJS project (strict mode)
-- [ ] Set up Prisma with schema (users + refresh_tokens)
-- [ ] Docker Compose (PostgreSQL dev + test, Redis)
-- [ ] Environment variables (.env.example)
-- [ ] Config module (Zod env validation)
-- [ ] Global exception filter
-- [ ] Response interceptor (standard format)
-- [ ] Zod validation pipe
-- [ ] Swagger at /api/docs + health endpoint
+- [x] Initialize pnpm monorepo + NestJS project (strict mode)
+- [x] Set up Prisma with schema (users + refresh_tokens) + initial migration
+- [x] Docker Compose (PostgreSQL dev + test, Redis)
+- [x] Environment variables (.env.example)
+- [x] Config module (Zod env validation)
+- [x] Global exception filter
+- [x] Response interceptor (standard format)
+- [x] Zod validation pipe (nestjs-zod, global APP_PIPE)
+- [x] Swagger at /api/docs + health endpoint
 - [ ] Auth module (register, login, refresh, logout, me)
 - [ ] JWT strategy + global guard
 - [ ] Users module (profile, password)
@@ -188,6 +188,23 @@ Conflicts found between the project documents, and how they are resolved. These 
 | 8 | Deferred: WebSocket event names (`message:new` vs `new-message`) | Decide at Milestone 3. Proposal: WORKFLOW.md names |
 | 9 | Deferred: Kanban `position` type (INTEGER vs gap-based) | Decide at Milestone 4. Proposal: Float for gap-based positioning |
 | 10 | Deferred: Bull vs BullMQ | Decide at Milestone 5. Proposal: BullMQ (Bull is maintenance-only) |
+| 11 | Package versions | NestJS 11, TypeScript 5.9, Prisma 7.10, Zod 4. Not NestJS 12 / TS 7 / Prisma 8: `nestjs-zod` supports Nest ≤11, `ts-jest` and `typescript-eslint` don't support TS 7 yet, Prisma 8 is still RC. Re-evaluate when they do |
+| 12 | Prisma 7 specifics | Config file is `apps/api/prisma7.config.ts` (Prisma 7.10 default name). Client is generated to `src/generated/prisma` (gitignored, regenerated on `postinstall`) and imported via `@prisma-client/client`. Connects through the `@prisma/adapter-pg` driver adapter |
+| 13 | Response shaping | Use `@ZodResponse({ type: XxxResponseDto })` on every endpoint. The global `ZodSerializerInterceptor` parses the return value with that schema and strips unknown fields — a second safety net against leaking raw Prisma fields (e.g. `password`) |
+| 14 | Jest + Prisma 7 | Jest uses `tsconfig.spec.json` (`module: commonjs`) because the Prisma 7 client uses dynamic `import()`. Type checking of tests is done by `pnpm typecheck`, not by ts-jest |
+
+---
+
+## Commands
+
+```bash
+pnpm install                       # also runs prisma generate
+docker compose up -d               # postgres (5432), postgres-test (5433), redis
+pnpm --filter api db:migrate       # apply migrations to dev DB
+pnpm --filter api db:migrate:test  # apply migrations to test DB
+pnpm dev                           # start API in watch mode
+pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e   # must all pass before a PR
+```
 
 ---
 
