@@ -150,3 +150,5 @@ vite.config.ts.timestamp-*
 
 # Local AI agent settings
 .claude/
+# Prisma generated client (regenerated on install)
+apps/api/src/generated/
