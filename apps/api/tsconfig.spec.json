@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // Jest runs inside a CommonJS VM: dynamic import() (used by the Prisma 7 client)
+    // must be compiled to require(). Type checking of tests is done by `pnpm typecheck`.
+    "module": "commonjs",
+    "moduleResolution": "node10",
+    "ignoreDeprecations": "5.0"
+  }
+}
