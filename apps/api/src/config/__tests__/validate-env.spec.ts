@@ -45,4 +45,44 @@ describe('validateEnv', () => {
     expect(run).toThrow(/JWT_ACCESS_SECRET/);
     expect(run).not.toThrow(new RegExp(secret));
   });
+
+  describe('placeholder secrets (values from .env.example)', () => {
+    const placeholderSecrets = {
+      JWT_ACCESS_SECRET: 'change-me-access-secret-at-least-32-characters',
+      JWT_REFRESH_SECRET: 'change-me-refresh-secret-at-least-32-characters',
+    };
+
+    it('should reject both placeholder secrets in production, naming each variable', () => {
+      const env = { ...validEnv(), ...placeholderSecrets, NODE_ENV: 'production' };
+
+      const run = (): unknown => validateEnv(env);
+
+      expect(run).toThrow(/JWT_ACCESS_SECRET: Placeholder secret/);
+      expect(run).toThrow(/JWT_REFRESH_SECRET: Placeholder secret/);
+      expect(run).not.toThrow(/change-me-/);
+    });
+
+    it('should flag only the variable that still holds a placeholder', () => {
+      const env = {
+        ...validEnv(),
+        NODE_ENV: 'production',
+        JWT_REFRESH_SECRET: placeholderSecrets.JWT_REFRESH_SECRET,
+      };
+
+      const run = (): unknown => validateEnv(env);
+
+      expect(run).toThrow(/JWT_REFRESH_SECRET: Placeholder secret/);
+      expect(run).not.toThrow(/JWT_ACCESS_SECRET/);
+    });
+
+    it('should accept strong secrets in production', () => {
+      const env = { ...validEnv(), NODE_ENV: 'production' };
+      expect(validateEnv(env)).toBe(env);
+    });
+
+    it.each(['development', 'test'])('should accept placeholder secrets in %s', (nodeEnv) => {
+      const env = { ...validEnv(), ...placeholderSecrets, NODE_ENV: nodeEnv };
+      expect(validateEnv(env)).toBe(env);
+    });
+  });
 });

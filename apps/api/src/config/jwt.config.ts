@@ -1,12 +1,26 @@
 import { registerAs } from '@nestjs/config';
 import { z } from 'zod';
 
+import { nodeEnvSchema } from './app.config';
+
 const MIN_SECRET_LENGTH = 32;
+// Prefix of the sample secrets in .env.example. Those values are public (committed to GitHub).
+const PLACEHOLDER_SECRET_PREFIX = 'change-me';
+const PLACEHOLDER_SECRET_MESSAGE = 'Placeholder secret is not allowed in production';
 // Format accepted by jsonwebtoken: "15m", "7d", "3600s"...
 const durationSchema = z.string().regex(/^\d+[smhd]$/, 'Must look like 15m, 7d, 3600s');
 
+/**
+ * Valid unless we run in production with a sample secret.
+ * Dev/test keep accepting the samples so a fresh clone runs with .env.example as-is.
+ */
+function isAllowedSecret(nodeEnv: string, secret: string): boolean {
+  return nodeEnv !== 'production' || !secret.startsWith(PLACEHOLDER_SECRET_PREFIX);
+}
+
 export const jwtEnvSchema = z
   .object({
+    NODE_ENV: nodeEnvSchema,
     JWT_ACCESS_SECRET: z.string().min(MIN_SECRET_LENGTH),
     JWT_REFRESH_SECRET: z.string().min(MIN_SECRET_LENGTH),
     JWT_ACCESS_EXPIRY: durationSchema.default('15m'),
@@ -14,6 +28,14 @@ export const jwtEnvSchema = z
   })
   .refine((env) => env.JWT_ACCESS_SECRET !== env.JWT_REFRESH_SECRET, {
     message: 'JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must be different',
+    path: ['JWT_REFRESH_SECRET'],
+  })
+  .refine((env) => isAllowedSecret(env.NODE_ENV, env.JWT_ACCESS_SECRET), {
+    message: PLACEHOLDER_SECRET_MESSAGE,
+    path: ['JWT_ACCESS_SECRET'],
+  })
+  .refine((env) => isAllowedSecret(env.NODE_ENV, env.JWT_REFRESH_SECRET), {
+    message: PLACEHOLDER_SECRET_MESSAGE,
     path: ['JWT_REFRESH_SECRET'],
   });
 
