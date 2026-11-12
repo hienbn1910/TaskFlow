@@ -6,16 +6,21 @@ import { nodeEnvSchema } from './app.config';
 const MIN_SECRET_LENGTH = 32;
 // Prefix of the sample secrets in .env.example. Those values are public (committed to GitHub).
 const PLACEHOLDER_SECRET_PREFIX = 'change-me';
-const PLACEHOLDER_SECRET_MESSAGE = 'Placeholder secret is not allowed in production';
+// Allowlist, not blocklist: any environment added later (e.g. staging) rejects
+// the sample secrets by default (fail closed).
+const PLACEHOLDER_ALLOWED_ENVS: readonly string[] = ['development', 'test'];
+const PLACEHOLDER_SECRET_MESSAGE = 'Placeholder secret is only allowed in development and test';
 // Format accepted by jsonwebtoken: "15m", "7d", "3600s"...
 const durationSchema = z.string().regex(/^\d+[smhd]$/, 'Must look like 15m, 7d, 3600s');
 
 /**
- * Valid unless we run in production with a sample secret.
- * Dev/test keep accepting the samples so a fresh clone runs with .env.example as-is.
+ * Sample secrets are accepted only in the allowlisted environments, so a fresh clone
+ * runs with .env.example as-is. Everywhere else the secret must be a real one.
  */
-function isAllowedSecret(nodeEnv: string, secret: string): boolean {
-  return nodeEnv !== 'production' || !secret.startsWith(PLACEHOLDER_SECRET_PREFIX);
+export function isAllowedSecret(nodeEnv: string, secret: string): boolean {
+  return (
+    PLACEHOLDER_ALLOWED_ENVS.includes(nodeEnv) || !secret.startsWith(PLACEHOLDER_SECRET_PREFIX)
+  );
 }
 
 export const jwtEnvSchema = z
