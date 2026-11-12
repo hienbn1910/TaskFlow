@@ -53,8 +53,10 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       `${request.method} ${request.originalUrl} → ${String(error.statusCode)}`,
     );
     if (error.statusCode >= 500) {
-      const stack = exception instanceof Error ? exception.stack : String(exception);
-      this.logger.error(summary, stack);
+      // The first line of a stack trace is the error message, which may contain user data
+      const stack =
+        exception instanceof Error ? (exception.stack ?? exception.message) : String(exception);
+      this.logger.error(summary, maskSensitiveText(stack));
       return;
     }
     this.logger.warn(`${summary}: ${maskSensitiveText(error.message)}`);
