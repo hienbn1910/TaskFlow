@@ -109,4 +109,41 @@ describe('GlobalExceptionFilter', () => {
 
     expect(JSON.stringify(json.mock.calls)).not.toContain('secret internal detail');
   });
+
+  describe('masking sensitive data in 5xx logs', () => {
+    const EMAIL = 'hien@gmail.com';
+    const TOKEN = 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijklmnop';
+
+    /** Second argument passed to logger.error: the stack (or its replacement). */
+    const loggedStack = (): unknown => jest.mocked(Logger.prototype.error).mock.calls[0]?.[1];
+
+    it('should mask emails and tokens in the stack trace', () => {
+      const { host } = createHost();
+
+      filter.catch(new Error(`Failed to email ${EMAIL} with token ${TOKEN}`), host);
+
+      expect(loggedStack()).toEqual(expect.stringContaining('h***@gmail.com'));
+      expect(loggedStack()).toEqual(expect.stringContaining('eyJhbGci***'));
+      expect(loggedStack()).toEqual(expect.not.stringContaining(EMAIL));
+      expect(loggedStack()).toEqual(expect.not.stringContaining(TOKEN));
+    });
+
+    it('should fall back to the masked message when the error has no stack', () => {
+      const { host } = createHost();
+      const error = new Error(`Failed to email ${EMAIL}`);
+      error.stack = undefined;
+
+      filter.catch(error, host);
+
+      expect(loggedStack()).toBe('Failed to email h***@gmail.com');
+    });
+
+    it('should mask values thrown without an Error object', () => {
+      const { host } = createHost();
+
+      filter.catch(`Failed to email ${EMAIL}`, host);
+
+      expect(loggedStack()).toBe('Failed to email h***@gmail.com');
+    });
+  });
 });
