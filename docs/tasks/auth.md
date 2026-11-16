@@ -81,7 +81,7 @@ A1 deps + constants
 | Repository methods | `existsByEmail(email)`: checks **all** rows, soft-deleted included, because `email` is unique across the table (spec §3.1). Replaces the planned `findActiveByEmail`, which would let a soft-deleted email reach the DB constraint and return a generic P2002 message instead of `Email already registered`. <br> `findByEmailWithPassword(email)`: the only query that selects `password`. <br> `findActiveById(id)`: `deletedAt: null`. <br> `create({ email, password, fullName })`. <br> `updateLastLogin(id)`. <br> All use a shared `USER_SELECT` constant (no `password`), per the "select only needed fields" rule |
 | Tests | `__tests__/user.mapper.spec.ts`: output has exactly the DTO fields, no `password`/`deletedAt`/`isActive` |
 
-### - [ ] A6. `RefreshTokenRepository`
+### - [x] A6. `RefreshTokenRepository`
 
 | | |
 |---|---|
@@ -167,7 +167,7 @@ A1 deps + constants
 |---|---|
 | New files | `test/utils/reset-db.ts` (truncate `refresh_tokens`, `users`), `test/utils/auth-helpers.ts` (`registerUser`, `extractRefreshCookie`), `test/auth.e2e-spec.ts` |
 | Setup | `docker compose up -d --wait`, `pnpm --filter api db:migrate:test` |
-| Coverage | Every acceptance criterion in spec §6, including: password stored as bcrypt hash in the DB; `Set-Cookie` attributes; old refresh cookie reused → 401 **and** the user's other session (second login) also stops working; refresh after logout → 401; `/health` still public; existing `app.e2e-spec.ts` still passes |
+| Coverage | Every acceptance criterion in spec §6, including: password stored as bcrypt hash in the DB; `Set-Cookie` attributes; old refresh cookie reused → 401 **and** the user's other session (second login) also stops working; refresh after logout → 401; **two parallel `/refresh` requests with the same cookie → exactly one 200** (proves the atomic `rotate` from A6); `/health` still public; existing `app.e2e-spec.ts` still passes |
 
 ### - [ ] A15. Full test run and fixes (RULE.md §0 steps 6–7)
 
