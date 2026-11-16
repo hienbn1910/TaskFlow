@@ -36,7 +36,7 @@ A1 deps + constants
 
 ## Foundation
 
-### - [ ] A1. Install dependencies and add auth constants
+### - [x] A1. Install dependencies and add auth constants
 
 | | |
 |---|---|
