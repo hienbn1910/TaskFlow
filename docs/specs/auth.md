@@ -32,6 +32,7 @@ Plus the infrastructure these endpoints need:
 | Rate limiting on `login` / `register` | Not required by RULE.md; recommended | Separate hardening branch (proposal: `@nestjs/throttler`) |
 | Profile / password change | Users module | `feature/user-profile` |
 | Email verification | Not in WORKFLOW.md | — |
+| Third-party login (Google, GitHub OAuth) | Not in WORKFLOW.md; needs account linking and schema changes. Does not affect the JWT guard design | Possible extension after Milestone 8 |
 
 ### Database
 

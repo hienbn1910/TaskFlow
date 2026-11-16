@@ -165,7 +165,7 @@ authResponseSchema = z.object({ accessToken: z.string(), user: userResponseSchem
 
 Already installed: `cookie-parser`, `@types/cookie-parser`.
 
-**Not installed: `@nestjs/passport`, `passport`, `passport-jwt`.** See §7, decision needed.
+**Not installed: `@nestjs/passport`, `passport`, `passport-jwt`.** See §7.
 
 ---
 
@@ -182,9 +182,9 @@ AppModule → AuthModule → UsersModule → (PrismaModule, global)
 
 ---
 
-## 7. Decision Needed: Passport or a custom guard?
+## 7. Decision: custom guard, no Passport
 
-WORKFLOW.md §2 lists Passport.js. Proposal: **don't use Passport; write `JwtAuthGuard` directly with `@nestjs/jwt`.**
+WORKFLOW.md §2 lists Passport.js. **Decided: don't use Passport; write `JwtAuthGuard` directly with `@nestjs/jwt`.**
 
 | | Passport (`@nestjs/passport` + `passport-jwt`) | Custom guard |
 |---|---|---|
@@ -193,7 +193,11 @@ WORKFLOW.md §2 lists Passport.js. Proposal: **don't use Passport; write `JwtAut
 | Code size | Strategy + guard subclass | One guard (~30 lines) |
 | Value of Passport | Many strategies (OAuth, Google...) | Not needed: only JWT in this project |
 
-If accepted, record as Resolved Decision #15 in CLAUDE.md.
+The guard pins `algorithms: ['HS256']` and has dedicated tests for expired, tampered and wrong-type tokens.
+
+**Third-party login (Google, GitHub) does not change this.** OAuth only replaces the "prove identity" step at login; after it, the API issues its own JWT pair through `startSession()` and every request still goes through `JwtAuthGuard`. If OAuth is added later, a provider library can be used for that login endpoint alone.
+
+To record as Resolved Decision #15 in CLAUDE.md at the end of the branch.
 
 ---
 
