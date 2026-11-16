@@ -45,7 +45,7 @@ A1 deps + constants
 | Content | `REFRESH_COOKIE_NAME = 'refresh_token'`, `REFRESH_COOKIE_PATH = '/api/v1/auth'`, `BCRYPT_SALT_ROUNDS = 10`, `MAX_PASSWORD_BYTES = 72`, `JWT_ALGORITHM = 'HS256'`, error messages (`INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN`, `EMAIL_ALREADY_REGISTERED`, `UNAUTHORIZED`) |
 | Done when | Packages in `package.json`, app still boots, existing tests pass |
 
-### - [ ] A2. `duration.util` and `hash.util`
+### - [x] A2. `duration.util` and `hash.util`
 
 | | |
 |---|---|
