@@ -53,7 +53,7 @@ A1 deps + constants
 | Functions | `parseDurationMs(value: string): number`: `"15m"` → 900000, `"7d"` → 604800000. Throws on an invalid format (config already validates it; this is a second guard). <br> `sha256Hex(value: string): string` using `node:crypto` |
 | Tests | `__tests__/duration.util.spec.ts`: s/m/h/d units, invalid input throws. <br> `__tests__/hash.util.spec.ts`: known vector (`sha256("abc")`), same input → same output, 64 hex chars |
 
-### - [ ] A3. `password.util`
+### - [x] A3. `password.util`
 
 | | |
 |---|---|
