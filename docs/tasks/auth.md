@@ -61,7 +61,7 @@ A1 deps + constants
 | Functions | `hashPassword(plain)`: bcryptjs, `BCRYPT_SALT_ROUNDS`. <br> `verifyPassword(plain, hash): Promise<boolean>`. <br> `verifyAgainstDummy(plain): Promise<false>`: compares against a fixed, pre-computed bcrypt hash (rounds 10) and always returns `false`. Used by login when the email doesn't exist, so the response takes as long as a real check (spec §3.2) |
 | Tests | Hash is not the plain text and starts with `$2`; correct/incorrect password; `verifyAgainstDummy` returns `false`; the dummy hash uses cost 10 (same timing as real hashes) |
 
-### - [ ] A4. Shared auth types and `@CurrentUser()`
+### - [x] A4. Shared auth types and `@CurrentUser()`
 
 | | |
 |---|---|
