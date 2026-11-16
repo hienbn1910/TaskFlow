@@ -73,12 +73,12 @@ A1 deps + constants
 
 ## Data Access
 
-### - [ ] A5. Users module: entity, repository, mapper
+### - [x] A5. Users module: entity, repository, mapper
 
 | | |
 |---|---|
 | New files | `src/modules/users/entities/user.entity.ts`: `UserEntity` (id, email, fullName, avatarUrl, isActive, deletedAt, createdAt) and `UserCredentials = UserEntity & { password: string }`. <br> `src/modules/users/users.repository.ts`. <br> `src/modules/users/mappers/user.mapper.ts`: `toUserResponse(user: UserEntity): UserResponseDto` (`createdAt` → ISO string). <br> `src/modules/users/users.module.ts`: provides + exports `UsersRepository` |
-| Repository methods | `findActiveByEmail(email)`: `deletedAt: null`. <br> `findByEmailWithPassword(email)`: the only query that selects `password`. <br> `findActiveById(id)`: `deletedAt: null`. <br> `create({ email, password, fullName })`. <br> `updateLastLogin(id)`. <br> All use a shared `USER_SELECT` constant (no `password`), per the "select only needed fields" rule |
+| Repository methods | `existsByEmail(email)`: checks **all** rows, soft-deleted included, because `email` is unique across the table (spec §3.1). Replaces the planned `findActiveByEmail`, which would let a soft-deleted email reach the DB constraint and return a generic P2002 message instead of `Email already registered`. <br> `findByEmailWithPassword(email)`: the only query that selects `password`. <br> `findActiveById(id)`: `deletedAt: null`. <br> `create({ email, password, fullName })`. <br> `updateLastLogin(id)`. <br> All use a shared `USER_SELECT` constant (no `password`), per the "select only needed fields" rule |
 | Tests | `__tests__/user.mapper.spec.ts`: output has exactly the DTO fields, no `password`/`deletedAt`/`isActive` |
 
 ### - [ ] A6. `RefreshTokenRepository`
@@ -115,7 +115,7 @@ A1 deps + constants
 | | |
 |---|---|
 | New files | `src/modules/auth/auth.service.ts`, `src/modules/auth/entities/auth-session.entity.ts` (`AuthSession { accessToken, refreshToken, user: UserResponseDto }`) |
-| Methods | `register(dto)`: duplicate check → 409 → `hashPassword` → `create` → `startSession`. <br> `login(dto)`: find with password → if none: `verifyAgainstDummy` + 401 → if deleted/inactive or wrong password: 401 (same message) → `updateLastLogin` → `startSession`. <br> `getProfile(userId)`: `findActiveById` → 401 if missing or inactive → `toUserResponse`. <br> private `startSession(user)`: sign both tokens → `refreshTokenRepository.create` with `sha256Hex` + `refreshExpiresAt()` → return `AuthSession` |
+| Methods | `register(dto)`: `existsByEmail` → 409 → `hashPassword` → `create` → `startSession`. <br> `login(dto)`: find with password → if none: `verifyAgainstDummy` + 401 → if deleted/inactive or wrong password: 401 (same message) → `updateLastLogin` → `startSession`. <br> `getProfile(userId)`: `findActiveById` → 401 if missing or inactive → `toUserResponse`. <br> private `startSession(user)`: sign both tokens → `refreshTokenRepository.create` with `sha256Hex` + `refreshExpiresAt()` → return `AuthSession` |
 | Tests | `__tests__/auth.service.spec.ts` (repositories + `TokenService` mocked, password util real or mocked): every branch above; **the 401 for unknown email, wrong password, deleted and inactive user has the identical message**; dummy check runs when the email is unknown; stored value is the hash, not the raw refresh token; returned `user` has no `password` |
 
 ### - [ ] A10. `AuthService`: refresh, logout
