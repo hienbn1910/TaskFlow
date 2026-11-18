@@ -23,9 +23,11 @@ type UsersMock = jest.Mocked<
     'existsByEmail' | 'findByEmailWithPassword' | 'findActiveById' | 'create' | 'updateLastLogin'
   >
 >;
-type RefreshTokensMock = jest.Mocked<Pick<RefreshTokenRepository, 'create'>>;
+type RefreshTokensMock = jest.Mocked<
+  Pick<RefreshTokenRepository, 'create' | 'rotate' | 'deleteByHash' | 'deleteAllForUser'>
+>;
 type TokensMock = jest.Mocked<
-  Pick<TokenService, 'signAccess' | 'signRefresh' | 'refreshExpiresAt'>
+  Pick<TokenService, 'signAccess' | 'signRefresh' | 'verifyRefresh' | 'refreshExpiresAt'>
 >;
 
 /** Returns what `action` throws (or undefined if it resolves), so errors can be compared. */
@@ -74,10 +76,16 @@ describe('AuthService', () => {
       create: jest.fn(),
       updateLastLogin: jest.fn(),
     };
-    refreshTokens = { create: jest.fn() };
+    refreshTokens = {
+      create: jest.fn(),
+      rotate: jest.fn(),
+      deleteByHash: jest.fn(),
+      deleteAllForUser: jest.fn(),
+    };
     tokens = {
       signAccess: jest.fn().mockResolvedValue('access.jwt'),
       signRefresh: jest.fn().mockResolvedValue('refresh.jwt'),
+      verifyRefresh: jest.fn(),
       refreshExpiresAt: jest.fn().mockReturnValue(EXPIRES_AT),
     };
     const moduleRef = await Test.createTestingModule({
@@ -217,6 +225,89 @@ describe('AuthService', () => {
       const session = await service.login({ email: USER.email, password: 'Secret123' });
 
       expect(JSON.stringify(session)).not.toContain(USER.password);
+    });
+  });
+
+  describe('refresh', () => {
+    const OLD_TOKEN = 'old.refresh.jwt';
+    const PAYLOAD = { sub: USER.id, jti: '9d2e4f6a-1b3c-4d5e-8f7a-0b1c2d3e4f5a' };
+
+    const arrangeValidToken = (): void => {
+      tokens.verifyRefresh.mockResolvedValue(PAYLOAD);
+      users.findActiveById.mockResolvedValue(USER);
+    };
+
+    it('should rotate: consume the old hash and store the new one', async () => {
+      arrangeValidToken();
+      refreshTokens.rotate.mockResolvedValue(true);
+
+      const session = await service.refresh(OLD_TOKEN);
+
+      expect(refreshTokens.rotate).toHaveBeenCalledWith(sha256Hex(OLD_TOKEN), {
+        userId: USER.id,
+        tokenHash: sha256Hex('refresh.jwt'),
+        expiresAt: EXPIRES_AT,
+      });
+      expect(session).toEqual({
+        accessToken: 'access.jwt',
+        refreshToken: 'refresh.jwt',
+        user: PUBLIC_USER,
+      });
+      expect(refreshTokens.deleteAllForUser).not.toHaveBeenCalled();
+    });
+
+    it('should revoke ALL sessions of the user when the token was already used', async () => {
+      arrangeValidToken();
+      refreshTokens.rotate.mockResolvedValue(false);
+
+      await expect(service.refresh(OLD_TOKEN)).rejects.toThrow(AUTH_ERROR.INVALID_REFRESH_TOKEN);
+      expect(refreshTokens.deleteAllForUser).toHaveBeenCalledWith(USER.id);
+    });
+
+    it.each([undefined, ''])('should throw 401 without touching the DB for token %p', async (token) => {
+      await expect(service.refresh(token)).rejects.toThrow(AUTH_ERROR.INVALID_REFRESH_TOKEN);
+      expect(tokens.verifyRefresh).not.toHaveBeenCalled();
+      expect(users.findActiveById).not.toHaveBeenCalled();
+    });
+
+    it('should propagate the 401 of an invalid JWT without touching the DB', async () => {
+      tokens.verifyRefresh.mockRejectedValue(
+        new UnauthorizedException(AUTH_ERROR.INVALID_REFRESH_TOKEN),
+      );
+
+      await expect(service.refresh(OLD_TOKEN)).rejects.toThrow(UnauthorizedException);
+      expect(users.findActiveById).not.toHaveBeenCalled();
+      expect(refreshTokens.rotate).not.toHaveBeenCalled();
+    });
+
+    it.each([
+      ['missing', null],
+      ['inactive', { ...USER, isActive: false }],
+    ])('should throw 401 and not rotate when the user is %s', async (_, user) => {
+      tokens.verifyRefresh.mockResolvedValue(PAYLOAD);
+      users.findActiveById.mockResolvedValue(user);
+
+      await expect(service.refresh(OLD_TOKEN)).rejects.toThrow(AUTH_ERROR.INVALID_REFRESH_TOKEN);
+      expect(refreshTokens.rotate).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('logout', () => {
+    it('should delete the session by the token hash', async () => {
+      await service.logout('some.refresh.jwt');
+
+      expect(refreshTokens.deleteByHash).toHaveBeenCalledWith(sha256Hex('some.refresh.jwt'));
+    });
+
+    it.each([undefined, ''])('should do nothing and not throw for token %p', async (token) => {
+      await expect(service.logout(token)).resolves.toBeUndefined();
+      expect(refreshTokens.deleteByHash).not.toHaveBeenCalled();
+    });
+
+    it('should not check the JWT signature', async () => {
+      await service.logout('not-even-a-jwt');
+
+      expect(tokens.verifyRefresh).not.toHaveBeenCalled();
     });
   });
 

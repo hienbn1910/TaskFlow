@@ -110,7 +110,7 @@ A1 deps + constants
 | New files | `src/modules/auth/dto/auth-fields.schema.ts`: `emailSchema` (trim → lowercase → `z.email().max(254)`), `passwordBytesLimit` refine. <br> `dto/register.dto.ts`: email, strong password (min 8, uppercase, digit, ≤ 72 bytes), `fullName` via `sanitizedString(min 1, max 100)`. <br> `dto/login.dto.ts`: email, password (min 1, ≤ 72 bytes, no strength rule). <br> `dto/auth-response.dto.ts`: `{ accessToken, user: userResponseSchema }` |
 | Tests | `__tests__/auth-dto.spec.ts`: email normalized; each password rule fails with its own message; 72-byte limit counted in bytes (e.g. a 30-char Vietnamese/emoji string over 72 bytes fails); `fullName` HTML stripped; login accepts a weak password |
 
-### - [ ] A9. `AuthService`: register, login, getProfile
+### - [x] A9. `AuthService`: register, login, getProfile
 
 | | |
 |---|---|
@@ -118,7 +118,7 @@ A1 deps + constants
 | Methods | `register(dto)`: `existsByEmail` → 409 → `hashPassword` → `create` → `startSession`. <br> `login(dto)`: find with password → if none: `verifyAgainstDummy` + 401 → if deleted/inactive or wrong password: 401 (same message) → `updateLastLogin` → `startSession`. <br> `getProfile(userId)`: `findActiveById` → 401 if missing or inactive → `toUserResponse`. <br> private `startSession(user)`: sign both tokens → `refreshTokenRepository.create` with `sha256Hex` + `refreshExpiresAt()` → return `AuthSession` |
 | Tests | `__tests__/auth.service.spec.ts` (repositories + `TokenService` mocked, password util real or mocked): every branch above; **the 401 for unknown email, wrong password, deleted and inactive user has the identical message**; dummy check runs when the email is unknown; stored value is the hash, not the raw refresh token; returned `user` has no `password` |
 
-### - [ ] A10. `AuthService`: refresh, logout
+### - [x] A10. `AuthService`: refresh, logout
 
 | | |
 |---|---|
