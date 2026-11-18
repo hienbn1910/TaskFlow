@@ -94,7 +94,7 @@ A1 deps + constants
 
 ## Auth Core
 
-### - [ ] A7. `TokenService`
+### - [x] A7. `TokenService`
 
 | | |
 |---|---|
@@ -103,7 +103,7 @@ A1 deps + constants
 | Methods | `signAccess(userId)`: payload `{ sub }`, access secret + expiry. <br> `signRefresh(userId)`: payload `{ sub, jti: randomUUID() }`, refresh secret + expiry. <br> `verifyAccess(token): Promise<AccessPayload>` / `verifyRefresh(token): Promise<RefreshPayload>`: `algorithms: ['HS256']`, then parse the payload with a Zod schema (`sub: z.uuid()`, `jti: z.uuid()` for refresh). Any failure → `UnauthorizedException`. <br> `refreshExpiresAt(): Date`: now + `parseDurationMs(refreshExpiry)` |
 | Tests | `__tests__/token.service.spec.ts` with a real `JwtService`: sign → verify round trip; two refresh tokens for the same user differ; expired token rejected (fake timers); tampered signature rejected; **access token rejected by `verifyRefresh` and vice versa**; token signed with `alg: none` / HS512 rejected; payload with wrong shape rejected |
 
-### - [ ] A8. Request/response DTOs
+### - [x] A8. Request/response DTOs
 
 | | |
 |---|---|
@@ -178,5 +178,5 @@ A1 deps + constants
 | | |
 |---|---|
 | Check | RULE.md §4 (indexes: `users.email` unique, `refresh_tokens.token_hash` unique, `user_id` indexed: already in schema), §5 (no password/token in responses or logs), function size and parameter limits, import order |
-| Docs | `CLAUDE.md`: tick auth tasks in Milestone 1, add Resolved Decision #15 (custom JWT guard, no Passport). Tick all boxes in this file |
+| Docs | `CLAUDE.md`: tick auth tasks in Milestone 1, add Resolved Decision #15 (custom JWT guard, no Passport). Extend Decision #11: `@nestjs/jwt` stays on 11.x because 12.x is ESM-only and Jest (CommonJS, see Decision #14) cannot load it. Tick all boxes in this file |
 | PR | Ready-to-paste title and body for the user |
