@@ -103,7 +103,7 @@ A1 deps + constants
 | Methods | `signAccess(userId)`: payload `{ sub }`, access secret + expiry. <br> `signRefresh(userId)`: payload `{ sub, jti: randomUUID() }`, refresh secret + expiry. <br> `verifyAccess(token): Promise<AccessPayload>` / `verifyRefresh(token): Promise<RefreshPayload>`: `algorithms: ['HS256']`, then parse the payload with a Zod schema (`sub: z.uuid()`, `jti: z.uuid()` for refresh). Any failure → `UnauthorizedException`. <br> `refreshExpiresAt(): Date`: now + `parseDurationMs(refreshExpiry)` |
 | Tests | `__tests__/token.service.spec.ts` with a real `JwtService`: sign → verify round trip; two refresh tokens for the same user differ; expired token rejected (fake timers); tampered signature rejected; **access token rejected by `verifyRefresh` and vice versa**; token signed with `alg: none` / HS512 rejected; payload with wrong shape rejected |
 
-### - [ ] A8. Request/response DTOs
+### - [x] A8. Request/response DTOs
 
 | | |
 |---|---|
