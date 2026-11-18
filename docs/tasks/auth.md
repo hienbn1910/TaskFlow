@@ -94,7 +94,7 @@ A1 deps + constants
 
 ## Auth Core
 
-### - [ ] A7. `TokenService`
+### - [x] A7. `TokenService`
 
 | | |
 |---|---|
@@ -178,5 +178,5 @@ A1 deps + constants
 | | |
 |---|---|
 | Check | RULE.md §4 (indexes: `users.email` unique, `refresh_tokens.token_hash` unique, `user_id` indexed: already in schema), §5 (no password/token in responses or logs), function size and parameter limits, import order |
-| Docs | `CLAUDE.md`: tick auth tasks in Milestone 1, add Resolved Decision #15 (custom JWT guard, no Passport). Tick all boxes in this file |
+| Docs | `CLAUDE.md`: tick auth tasks in Milestone 1, add Resolved Decision #15 (custom JWT guard, no Passport). Extend Decision #11: `@nestjs/jwt` stays on 11.x because 12.x is ESM-only and Jest (CommonJS, see Decision #14) cannot load it. Tick all boxes in this file |
 | PR | Ready-to-paste title and body for the user |
