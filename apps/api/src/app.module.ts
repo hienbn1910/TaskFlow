@@ -6,6 +6,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
 import { configLoaders, validateEnv } from '@config/index';
+import { AuthModule } from '@modules/auth/auth.module';
 import { HealthModule } from '@modules/health/health.module';
 
 import { PrismaModule } from './prisma/prisma.module';
@@ -20,6 +21,7 @@ import { PrismaModule } from './prisma/prisma.module';
     }),
     PrismaModule,
     HealthModule,
+    AuthModule,
   ],
   providers: [
     // Validates @Body/@Query/@Param against their createZodDto schema

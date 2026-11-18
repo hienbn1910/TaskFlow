@@ -147,13 +147,14 @@ A1 deps + constants
 | New files | `src/modules/auth/refresh-cookie.ts`: `buildRefreshCookieOptions({ isProduction, maxAgeMs }): CookieOptions` (`httpOnly`, `secure` and `sameSite` by env, `path: REFRESH_COOKIE_PATH`, `maxAge`) and `buildClearCookieOptions(isProduction)` (same without `maxAge`, so the browser actually removes it). <br> `src/modules/auth/filters/refresh-cookie.filter.ts`: `@Catch()`, extends `GlobalExceptionFilter`, injects `appConfig`; `catch()` clears the cookie then calls `super.catch()` |
 | Tests | Options in production (`secure: true`, `sameSite: 'none'`) vs development (`false`, `'lax'`); filter clears the cookie and still returns the standard error body |
 
-### - [ ] A13. `AuthController`, `AuthModule`, wiring
+### - [x] A13. `AuthController`, `AuthModule`, wiring
 
 | | |
 |---|---|
 | New files | `src/modules/auth/auth.controller.ts`, `src/modules/auth/auth.module.ts` |
 | Controller | `@ApiTags('Auth')`, `@Controller('auth')`. <br> `register` (`@Public`, `@HttpCode(201)`), `login` (`@Public`, `@HttpCode(200)`), `refresh` (`@Public`, `@HttpCode(200)`, `@UseFilters(RefreshCookieFilter)`, `@ApiCookieAuth`), `logout` (`@Public`, `@HttpCode(200)`, returns nothing), `me` (`@ApiBearerAuth`, `@CurrentUser()`). <br> `@ZodResponse` on every endpoint that returns data. <br> Uses `@Res({ passthrough: true })` to set/clear the cookie; returns `{ accessToken, user }`, **never** the `AuthSession` object |
-| Module | Imports `UsersModule`, `JwtModule.register({})`; provides `AuthService`, `TokenService`, `RefreshTokenRepository`, `RefreshCookieFilter`, `{ provide: APP_GUARD, useClass: JwtAuthGuard }` |
+| Module | Imports `UsersModule`, `JwtModule.register({})`; provides `AuthService`, `TokenService`, `RefreshTokenRepository`, `RefreshCookieService`, `{ provide: APP_GUARD, useClass: JwtAuthGuard }`. `RefreshCookieFilter` is not listed: `@UseFilters(Class)` lets Nest instantiate it with DI from this module |
+| Added during implementation | `refresh-cookie.service.ts`: `read` / `set` / `clear` of the cookie, the single place that injects the config. Used by the controller and by `RefreshCookieFilter` (refactored to use it). `test/app.e2e-spec.ts`: Swagger document test (auth paths + `RegisterDto` fields) |
 | Modified | `src/app.module.ts`: import `AuthModule` |
 | Tests | `__tests__/auth.controller.spec.ts` (service mocked): cookie set with the refresh token on register/login/refresh; body has no `refreshToken`; logout clears the cookie; `me` passes `user.id` |
 

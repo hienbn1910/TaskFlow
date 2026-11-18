@@ -1,12 +1,9 @@
-import { ArgumentsHost, Catch, Inject, Injectable } from '@nestjs/common';
-import type { ConfigType } from '@nestjs/config';
+import { ArgumentsHost, Catch, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 
-import { REFRESH_COOKIE_NAME } from '@common/constants/auth.constant';
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
-import { appConfig } from '@config/index';
 
-import { buildClearCookieOptions } from '../refresh-cookie';
+import { RefreshCookieService } from '../refresh-cookie.service';
 
 /**
  * Used only on POST /auth/refresh. Any error there means the refresh cookie is useless
@@ -17,13 +14,12 @@ import { buildClearCookieOptions } from '../refresh-cookie';
 @Catch()
 @Injectable()
 export class RefreshCookieFilter extends GlobalExceptionFilter {
-  constructor(@Inject(appConfig.KEY) private readonly config: ConfigType<typeof appConfig>) {
+  constructor(private readonly cookies: RefreshCookieService) {
     super();
   }
 
   override catch(exception: unknown, host: ArgumentsHost): void {
-    const response = host.switchToHttp().getResponse<Response>();
-    response.clearCookie(REFRESH_COOKIE_NAME, buildClearCookieOptions(this.config.isProduction));
+    this.cookies.clear(host.switchToHttp().getResponse<Response>());
     super.catch(exception, host);
   }
 }
