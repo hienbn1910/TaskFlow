@@ -2,7 +2,7 @@
 
 A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScript. Teams create isolated workspaces, talk in real-time messaging channels, manage tasks on Kanban boards, and share files, with role-based access control and WebSocket-powered live updates.
 
-> **Status:** early development. The backend foundation is done; authentication is next. See [Roadmap](#roadmap) for what works today and what is planned.
+> **Status:** early development. The backend foundation and authentication are done; the user profile is next. See [Roadmap](#roadmap) for what works today and what is planned.
 
 ## Tech stack
 
@@ -21,7 +21,7 @@ A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScr
 
 | Milestone | Scope | Status |
 |---|---|---|
-| 1. Foundation + Auth | Project setup, config, error handling, JWT auth, user profile | 🚧 In progress: foundation done, auth next |
+| 1. Foundation + Auth | Project setup, config, error handling, JWT auth, user profile | 🚧 In progress: foundation and auth done, user profile next |
 | 2. Workspaces & Members | Workspaces, roles, invitations | Planned |
 | 3. Channels & Messaging | Real-time channels, messages, attachments | Planned |
 | 4. Kanban Board | Boards, columns, drag-and-drop tasks | Planned |
@@ -163,7 +163,7 @@ taskflow/
 │   │   ├── src/
 │   │   │   ├── common/         # Filters, interceptors, decorators, utilities
 │   │   │   ├── config/         # Zod-validated environment config
-│   │   │   ├── modules/        # Feature modules (health, then auth, workspace, ...)
+│   │   │   ├── modules/        # Feature modules (health, auth, users, then workspace, ...)
 │   │   │   ├── prisma/         # PrismaService and PrismaModule
 │   │   │   └── main.ts
 │   │   └── test/               # End-to-end tests

@@ -176,7 +176,7 @@ A1 deps + constants
 
 `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e`. Fix failures; rerun the whole suite after every fix.
 
-### - [ ] A16. Security/performance check, refactor, docs, PR (steps 8–10)
+### - [x] A16. Security/performance check, refactor, docs, PR (steps 8–10)
 
 | | |
 |---|---|
