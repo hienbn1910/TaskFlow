@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { Public } from '@common/decorators/public.decorator';
 
 import { AppModule } from '../src/app.module';
-import { setupApp } from '../src/setup-app';
+import { setupApp, setupSwagger } from '../src/setup-app';
 
 // Test-only endpoint: lets us verify ZodValidationPipe + GlobalExceptionFilter end-to-end
 // before any real feature endpoint exists.
@@ -33,6 +33,7 @@ describe('App foundation (e2e)', () => {
     }).compile();
     app = moduleRef.createNestApplication();
     setupApp(app);
+    setupSwagger(app);
     await app.init();
   });
 
@@ -69,6 +70,29 @@ describe('App foundation (e2e)', () => {
     });
     const fields = (res.body as { details: { field: string }[] }).details.map((d) => d.field);
     expect(fields).toEqual(expect.arrayContaining(['email', 'age']));
+  });
+
+  it('GET /api/docs-json → OpenAPI document with the auth endpoints and schemas', async () => {
+    const res = await request(app.getHttpServer()).get('/api/docs-json').expect(200);
+    const doc = res.body as {
+      paths: Record<string, unknown>;
+      components: { schemas: Partial<Record<string, { properties?: Record<string, unknown> }>> };
+    }; // OpenAPI JSON shape, only the parts this test reads
+
+    expect(Object.keys(doc.paths)).toEqual(
+      expect.arrayContaining([
+        '/api/v1/auth/register',
+        '/api/v1/auth/login',
+        '/api/v1/auth/refresh',
+        '/api/v1/auth/logout',
+        '/api/v1/auth/me',
+      ]),
+    );
+    // Schemas with transform/refine (email normalization, password byte limit) still document
+    // their fields
+    expect(Object.keys(doc.components.schemas.RegisterDto?.properties ?? {})).toEqual(
+      expect.arrayContaining(['email', 'password', 'fullName']),
+    );
   });
 
   it('POST valid body → 201 wrapped in success format', async () => {

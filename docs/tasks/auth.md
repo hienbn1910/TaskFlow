@@ -110,7 +110,7 @@ A1 deps + constants
 | New files | `src/modules/auth/dto/auth-fields.schema.ts`: `emailSchema` (trim → lowercase → `z.email().max(254)`), `passwordBytesLimit` refine. <br> `dto/register.dto.ts`: email, strong password (min 8, uppercase, digit, ≤ 72 bytes), `fullName` via `sanitizedString(min 1, max 100)`. <br> `dto/login.dto.ts`: email, password (min 1, ≤ 72 bytes, no strength rule). <br> `dto/auth-response.dto.ts`: `{ accessToken, user: userResponseSchema }` |
 | Tests | `__tests__/auth-dto.spec.ts`: email normalized; each password rule fails with its own message; 72-byte limit counted in bytes (e.g. a 30-char Vietnamese/emoji string over 72 bytes fails); `fullName` HTML stripped; login accepts a weak password |
 
-### - [ ] A9. `AuthService`: register, login, getProfile
+### - [x] A9. `AuthService`: register, login, getProfile
 
 | | |
 |---|---|
@@ -118,7 +118,7 @@ A1 deps + constants
 | Methods | `register(dto)`: `existsByEmail` → 409 → `hashPassword` → `create` → `startSession`. <br> `login(dto)`: find with password → if none: `verifyAgainstDummy` + 401 → if deleted/inactive or wrong password: 401 (same message) → `updateLastLogin` → `startSession`. <br> `getProfile(userId)`: `findActiveById` → 401 if missing or inactive → `toUserResponse`. <br> private `startSession(user)`: sign both tokens → `refreshTokenRepository.create` with `sha256Hex` + `refreshExpiresAt()` → return `AuthSession` |
 | Tests | `__tests__/auth.service.spec.ts` (repositories + `TokenService` mocked, password util real or mocked): every branch above; **the 401 for unknown email, wrong password, deleted and inactive user has the identical message**; dummy check runs when the email is unknown; stored value is the hash, not the raw refresh token; returned `user` has no `password` |
 
-### - [ ] A10. `AuthService`: refresh, logout
+### - [x] A10. `AuthService`: refresh, logout
 
 | | |
 |---|---|
@@ -127,7 +127,7 @@ A1 deps + constants
 | Tests | Added to `auth.service.spec.ts`: happy path calls `rotate` with the old hash; **reuse (`rotate` → `false`) calls `deleteAllForUser` and throws 401**; missing/invalid token → 401 without touching the DB; inactive user → 401; logout with/without token never throws |
 | Size check | `refresh` is the longest method: extract `issueRotatedSession` helper if it passes 30 lines |
 
-### - [ ] A11. `JwtAuthGuard`
+### - [x] A11. `JwtAuthGuard`
 
 | | |
 |---|---|
@@ -140,20 +140,21 @@ A1 deps + constants
 
 ## HTTP Layer
 
-### - [ ] A12. Refresh cookie options and `RefreshCookieFilter`
+### - [x] A12. Refresh cookie options and `RefreshCookieFilter`
 
 | | |
 |---|---|
 | New files | `src/modules/auth/refresh-cookie.ts`: `buildRefreshCookieOptions({ isProduction, maxAgeMs }): CookieOptions` (`httpOnly`, `secure` and `sameSite` by env, `path: REFRESH_COOKIE_PATH`, `maxAge`) and `buildClearCookieOptions(isProduction)` (same without `maxAge`, so the browser actually removes it). <br> `src/modules/auth/filters/refresh-cookie.filter.ts`: `@Catch()`, extends `GlobalExceptionFilter`, injects `appConfig`; `catch()` clears the cookie then calls `super.catch()` |
 | Tests | Options in production (`secure: true`, `sameSite: 'none'`) vs development (`false`, `'lax'`); filter clears the cookie and still returns the standard error body |
 
-### - [ ] A13. `AuthController`, `AuthModule`, wiring
+### - [x] A13. `AuthController`, `AuthModule`, wiring
 
 | | |
 |---|---|
 | New files | `src/modules/auth/auth.controller.ts`, `src/modules/auth/auth.module.ts` |
 | Controller | `@ApiTags('Auth')`, `@Controller('auth')`. <br> `register` (`@Public`, `@HttpCode(201)`), `login` (`@Public`, `@HttpCode(200)`), `refresh` (`@Public`, `@HttpCode(200)`, `@UseFilters(RefreshCookieFilter)`, `@ApiCookieAuth`), `logout` (`@Public`, `@HttpCode(200)`, returns nothing), `me` (`@ApiBearerAuth`, `@CurrentUser()`). <br> `@ZodResponse` on every endpoint that returns data. <br> Uses `@Res({ passthrough: true })` to set/clear the cookie; returns `{ accessToken, user }`, **never** the `AuthSession` object |
-| Module | Imports `UsersModule`, `JwtModule.register({})`; provides `AuthService`, `TokenService`, `RefreshTokenRepository`, `RefreshCookieFilter`, `{ provide: APP_GUARD, useClass: JwtAuthGuard }` |
+| Module | Imports `UsersModule`, `JwtModule.register({})`; provides `AuthService`, `TokenService`, `RefreshTokenRepository`, `RefreshCookieService`, `{ provide: APP_GUARD, useClass: JwtAuthGuard }`. `RefreshCookieFilter` is not listed: `@UseFilters(Class)` lets Nest instantiate it with DI from this module |
+| Added during implementation | `refresh-cookie.service.ts`: `read` / `set` / `clear` of the cookie, the single place that injects the config. Used by the controller and by `RefreshCookieFilter` (refactored to use it). `test/app.e2e-spec.ts`: Swagger document test (auth paths + `RegisterDto` fields) |
 | Modified | `src/app.module.ts`: import `AuthModule` |
 | Tests | `__tests__/auth.controller.spec.ts` (service mocked): cookie set with the refresh token on register/login/refresh; body has no `refreshToken`; logout clears the cookie; `me` passes `user.id` |
 
@@ -161,7 +162,9 @@ A1 deps + constants
 
 ## Verification
 
-### - [ ] A14. Integration tests
+### - [x] A14. Integration tests
+
+> Found while writing it: the HTTP-level parallel refresh test also passes with a broken (find-then-delete) `rotate`, because the work before `rotate` keeps the two requests apart. Added `test/refresh-token.repository.e2e-spec.ts`, which calls `rotate` twice in parallel directly; verified it fails 3/3 against the broken version.
 
 | | |
 |---|---|
@@ -169,11 +172,11 @@ A1 deps + constants
 | Setup | `docker compose up -d --wait`, `pnpm --filter api db:migrate:test` |
 | Coverage | Every acceptance criterion in spec §6, including: password stored as bcrypt hash in the DB; `Set-Cookie` attributes; old refresh cookie reused → 401 **and** the user's other session (second login) also stops working; refresh after logout → 401; **two parallel `/refresh` requests with the same cookie → exactly one 200** (proves the atomic `rotate` from A6); `/health` still public; existing `app.e2e-spec.ts` still passes |
 
-### - [ ] A15. Full test run and fixes (RULE.md §0 steps 6–7)
+### - [x] A15. Full test run and fixes (RULE.md §0 steps 6–7)
 
 `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e`. Fix failures; rerun the whole suite after every fix.
 
-### - [ ] A16. Security/performance check, refactor, docs, PR (steps 8–10)
+### - [x] A16. Security/performance check, refactor, docs, PR (steps 8–10)
 
 | | |
 |---|---|

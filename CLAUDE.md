@@ -161,10 +161,10 @@ Tasks:
 - [x] Response interceptor (standard format)
 - [x] Zod validation pipe (nestjs-zod, global APP_PIPE)
 - [x] Swagger at /api/docs + health endpoint
-- [ ] Auth module (register, login, refresh, logout, me)
-- [ ] JWT strategy + global guard
+- [x] Auth module (register, login, refresh, logout, me)
+- [x] JWT global guard (custom, no Passport — Decision #15)
 - [ ] Users module (profile, password)
-- [ ] Unit tests + integration tests for auth and users
+- [ ] Unit tests + integration tests for auth and users (auth done; users pending)
 
 Completion criteria: User can register, login, receive JWT tokens, refresh them, and logout. All endpoints return standardized response format.
 
@@ -188,10 +188,12 @@ Conflicts found between the project documents, and how they are resolved. These 
 | 8 | Deferred: WebSocket event names (`message:new` vs `new-message`) | Decide at Milestone 3. Proposal: WORKFLOW.md names |
 | 9 | Deferred: Kanban `position` type (INTEGER vs gap-based) | Decide at Milestone 4. Proposal: Float for gap-based positioning |
 | 10 | Deferred: Bull vs BullMQ | Decide at Milestone 5. Proposal: BullMQ (Bull is maintenance-only) |
-| 11 | Package versions | NestJS 11, TypeScript 5.9, Prisma 7.10, Zod 4. Not NestJS 12 / TS 7 / Prisma 8: `nestjs-zod` supports Nest ≤11, `ts-jest` and `typescript-eslint` don't support TS 7 yet, Prisma 8 is still RC. Re-evaluate when they do |
+| 11 | Package versions | NestJS 11, TypeScript 5.9, Prisma 7.10, Zod 4. Not NestJS 12 / TS 7 / Prisma 8: `nestjs-zod` supports Nest ≤11, `ts-jest` and `typescript-eslint` don't support TS 7 yet, Prisma 8 is still RC. Re-evaluate when they do. `@nestjs/jwt` stays on 11.x: 12.x is ESM-only and Jest (CommonJS, Decision #14) cannot load it |
 | 12 | Prisma 7 specifics | Config file is `apps/api/prisma7.config.ts` (Prisma 7.10 default name). Client is generated to `src/generated/prisma` (gitignored, regenerated on `postinstall`) and imported via `@prisma-client/client`. Connects through the `@prisma/adapter-pg` driver adapter |
 | 13 | Response shaping | Use `@ZodResponse({ type: XxxResponseDto })` on every endpoint. The global `ZodSerializerInterceptor` parses the return value with that schema and strips unknown fields — a second safety net against leaking raw Prisma fields (e.g. `password`) |
 | 14 | Jest + Prisma 7 | Jest uses `tsconfig.spec.json` (`module: commonjs`) because the Prisma 7 client uses dynamic `import()`. Type checking of tests is done by `pnpm typecheck`, not by ts-jest |
+| 15 | WORKFLOW.md §2 lists Passport.js | No Passport. `JwtAuthGuard` (`common/guards`) is written with `@nestjs/jwt`: global `APP_GUARD`, `@Public()` to opt out, HS256 pinned, payload validated with Zod, user reloaded on every request so a blocked account loses access at once. Passport's `validate(payload: any)` conflicts with the no-`any` rule, and only JWT is needed. OAuth login, if added later, issues our own JWT pair and does not change the guard |
+| 16 | WORKFLOW.md §5 lists `forgot-password` / `reset-password` in the Auth module | Deferred to Milestone 5: they need email sending through the queue. Rate limiting on login/register is also deferred to a hardening branch (proposal: `@nestjs/throttler`) |
 
 ---
 
