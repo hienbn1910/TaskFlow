@@ -127,7 +127,7 @@ A1 deps + constants
 | Tests | Added to `auth.service.spec.ts`: happy path calls `rotate` with the old hash; **reuse (`rotate` → `false`) calls `deleteAllForUser` and throws 401**; missing/invalid token → 401 without touching the DB; inactive user → 401; logout with/without token never throws |
 | Size check | `refresh` is the longest method: extract `issueRotatedSession` helper if it passes 30 lines |
 
-### - [ ] A11. `JwtAuthGuard`
+### - [x] A11. `JwtAuthGuard`
 
 | | |
 |---|---|
