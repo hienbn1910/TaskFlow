@@ -140,7 +140,7 @@ A1 deps + constants
 
 ## HTTP Layer
 
-### - [ ] A12. Refresh cookie options and `RefreshCookieFilter`
+### - [x] A12. Refresh cookie options and `RefreshCookieFilter`
 
 | | |
 |---|---|

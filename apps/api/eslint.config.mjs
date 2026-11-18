@@ -30,8 +30,10 @@ export default tseslint.config(
           message: 'Use async/await instead of .then() (RULE.md §2).',
         },
         {
+          // Allowed: `filter.catch(...)` (Identifier) and `super.catch(...)` (Super): calls to an
+          // exception filter's catch() method, never a Promise
           selector:
-            "CallExpression[callee.property.name='catch'][callee.object.type!='Identifier']",
+            "CallExpression[callee.property.name='catch'][callee.object.type!='Identifier'][callee.object.type!='Super']",
           message: 'Use try/catch instead of .catch() (RULE.md §2).',
         },
       ],
