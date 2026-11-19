@@ -89,7 +89,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | Methods | `updateProfile(userId, dto)`: `updateProfile` → `toUserResponse`. <br> `changePassword(userId, dto)`: `findCredentialsById` → null or `!canSignIn` → 401 → `verifyPassword(current)` false → **400** `CURRENT_PASSWORD_INCORRECT` → `hashPassword(new)` → `updatePasswordAndRevokeSessions` |
 | Tests | `modules/users/__tests__/users.service.spec.ts` (repository mocked, `password.util` mocked as in auth): profile returns the public user; wrong current password → 400 and **nothing written**; correct → hash of the NEW password stored, sessions revoked in the same call; missing/inactive user → 401; the plain new password never reaches the repository |
 
-### - [ ] U7. `UsersController` and module wiring
+### - [x] U7. `UsersController` and module wiring
 
 | | |
 |---|---|

@@ -86,12 +86,21 @@ describe('App foundation (e2e)', () => {
         '/api/v1/auth/refresh',
         '/api/v1/auth/logout',
         '/api/v1/auth/me',
+        '/api/v1/users/profile',
+        '/api/v1/users/password',
       ]),
     );
     // Schemas with transform/refine (email normalization, password byte limit) still document
     // their fields
     expect(Object.keys(doc.components.schemas.RegisterDto?.properties ?? {})).toEqual(
       expect.arrayContaining(['email', 'password', 'fullName']),
+    );
+    // Object-level refine ("at least one field", "new ≠ current") keeps the fields too
+    expect(Object.keys(doc.components.schemas.UpdateProfileDto?.properties ?? {})).toEqual([
+      'fullName',
+    ]);
+    expect(Object.keys(doc.components.schemas.ChangePasswordDto?.properties ?? {})).toEqual(
+      expect.arrayContaining(['currentPassword', 'newPassword']),
     );
   });
 
