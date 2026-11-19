@@ -43,7 +43,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | Update | `register.dto.ts` (uses `fullNameSchema`), `login.dto.ts` |
 | Tests | `auth-dto.spec.ts` unchanged and green: it tests the DTOs, which keep the same behavior |
 
-### - [ ] U2. Move `canSignIn` to `modules/users/user.rules.ts`
+### - [x] U2. Move `canSignIn` to `modules/users/user.rules.ts`
 
 | | |
 |---|---|
