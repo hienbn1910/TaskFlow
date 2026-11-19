@@ -3,7 +3,12 @@ import { Injectable } from '@nestjs/common';
 import type { Prisma } from '@prisma-client/client';
 
 import { PrismaService } from '../../prisma/prisma.service';
-import type { CreateUserData, UserCredentials, UserEntity } from './entities/user.entity';
+import type {
+  CreateUserData,
+  UpdateProfileData,
+  UserCredentials,
+  UserEntity,
+} from './entities/user.entity';
 
 /**
  * Columns loaded for a UserEntity. `password` is deliberately absent:
@@ -36,9 +41,17 @@ export class UsersRepository {
     return user !== null;
   }
 
-  /** The only query that loads the password hash. Soft-deleted rows are returned too. */
+  /** Login: loads the password hash. Soft-deleted rows are returned too (service decides). */
   async findByEmailWithPassword(email: string): Promise<UserCredentials | null> {
     return this.prisma.user.findUnique({ where: { email }, select: CREDENTIALS_SELECT });
+  }
+
+  /** Password change: loads the password hash of a user who is not soft-deleted. */
+  async findCredentialsById(id: string): Promise<UserCredentials | null> {
+    return this.prisma.user.findFirst({
+      where: { id, deletedAt: null },
+      select: CREDENTIALS_SELECT,
+    });
   }
 
   /** Excludes soft-deleted users. `isActive` is returned so the caller can check it. */
@@ -52,5 +65,32 @@ export class UsersRepository {
 
   async updateLastLogin(id: string): Promise<void> {
     await this.prisma.user.update({ where: { id }, data: { lastLoginAt: new Date() } });
+  }
+
+  /**
+   * `data` is copied field by field from the closed UpdateProfileData type.
+   * `deletedAt: null` in `where`: a user soft-deleted in the meantime is not updated
+   * (Prisma throws P2025, mapped to 404 by the global filter).
+   */
+  async updateProfile(id: string, data: UpdateProfileData): Promise<UserEntity> {
+    return this.prisma.user.update({
+      where: { id, deletedAt: null },
+      data: { fullName: data.fullName },
+      select: USER_SELECT,
+    });
+  }
+
+  /**
+   * Stores the new hash AND deletes every refresh token of the user, in ONE nested write.
+   * Prisma runs a nested write in a single transaction: the password can never change
+   * while old sessions survive, or the reverse (spec §3.2 steps 4–5).
+   * Selects only `id`: nothing about the user, least of all the hash, is read back.
+   */
+  async updatePasswordAndRevokeSessions(id: string, passwordHash: string): Promise<void> {
+    await this.prisma.user.update({
+      where: { id, deletedAt: null },
+      data: { password: passwordHash, refreshTokens: { deleteMany: {} } },
+      select: { id: true },
+    });
   }
 }

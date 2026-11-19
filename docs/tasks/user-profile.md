@@ -72,13 +72,14 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | New files | `common/constants/user.constant.ts`: `USER_ERROR = { CURRENT_PASSWORD_INCORRECT, NEW_PASSWORD_SAME, NO_FIELDS }`. <br> `modules/users/dto/update-profile.dto.ts`: `{ fullName: fullNameSchema.optional() }` + refine: at least one defined field (`NO_FIELDS`). <br> `modules/users/dto/change-password.dto.ts`: `{ currentPassword: passwordInputSchema, newPassword: newPasswordSchema }` + refine on path `newPassword`: different from `currentPassword` (`NEW_PASSWORD_SAME`) |
 | Tests | `modules/users/__tests__/users-dto.spec.ts`: `{}` → `NO_FIELDS`; `fullName` cleaned / length limits; unknown fields (`email`, `isActive`, `password`) stripped; weak `newPassword` fails with its rule; same passwords → error on `newPassword`; empty `currentPassword` fails; weak `currentPassword` accepted (no strength rule) |
 
-### - [ ] U5. `UsersRepository`: new methods
+### - [x] U5. `UsersRepository`: new methods
 
 | | |
 |---|---|
 | Modified file | `modules/users/users.repository.ts` |
 | Methods | `updateProfile(id, data: UpdateProfileData): Promise<UserEntity>`: `update` with `USER_SELECT`. `UpdateProfileData` is a typed entity (`{ fullName?: string }`), never the raw body. <br> `findCredentialsById(id): Promise<UserCredentials \| null>`: `deletedAt: null`, `CREDENTIALS_SELECT`. <br> `updatePasswordAndRevokeSessions(id, passwordHash): Promise<void>`: **one** `user.update` with `data: { password, refreshTokens: { deleteMany: {} } }`, `select: { id: true }` |
-| Note | Covered by U8 (real DB): password changed AND all sessions gone, in one statement |
+| Note | Both updates also filter `deletedAt: null` (a user soft-deleted meanwhile → P2025 → 404, nothing written) |
+| Tests | `test/users.repository.e2e-spec.ts` (real DB, like `refresh-token.repository.e2e-spec.ts`): new hash stored AND all sessions gone; **another user's sessions untouched** (`deleteMany: {}` is scoped to the user); soft-deleted user → nothing changed. HTTP-level coverage in U8 |
 
 ### - [ ] U6. `UsersService`
 
