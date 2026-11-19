@@ -81,7 +81,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | Note | Both updates also filter `deletedAt: null` (a user soft-deleted meanwhile → P2025 → 404, nothing written) |
 | Tests | `test/users.repository.e2e-spec.ts` (real DB, like `refresh-token.repository.e2e-spec.ts`): new hash stored AND all sessions gone; **another user's sessions untouched** (`deleteMany: {}` is scoped to the user); soft-deleted user → nothing changed. HTTP-level coverage in U8 |
 
-### - [ ] U6. `UsersService`
+### - [x] U6. `UsersService`
 
 | | |
 |---|---|
