@@ -76,11 +76,6 @@ export class TokenService {
     return new Date(Date.now() + parseDurationMs(this.config.refreshExpiry));
   }
 
-  /** Expiry of the refresh token in ms, for the cookie `maxAge`. */
-  refreshMaxAgeMs(): number {
-    return parseDurationMs(this.config.refreshExpiry);
-  }
-
   /**
    * Any failure (bad signature, expired, wrong algorithm, malformed, wrong payload shape)
    * becomes the same 401: the client is not told WHY its token was rejected.

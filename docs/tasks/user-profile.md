@@ -51,7 +51,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | Update | `auth.service.ts` (remove the function, import it), `common/guards/jwt-auth.guard.ts` (import from users, not auth) |
 | Tests | New `modules/users/__tests__/user.rules.spec.ts`: active ✓, inactive ✗, soft-deleted ✗. Existing AuthService and guard tests unchanged and green |
 
-### - [ ] U3. Move the refresh cookie to `common/cookies/` + `CookieModule`
+### - [x] U3. Move the refresh cookie to `common/cookies/` + `CookieModule`
 
 | | |
 |---|---|
@@ -59,7 +59,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | Change | `RefreshCookieService` injects `jwtConfig` instead of `TokenService`; `maxAge = parseDurationMs(refreshExpiry)` |
 | New file | `common/cookies/cookie.module.ts`: provides + exports `RefreshCookieService` |
 | Update | `auth.module.ts` (imports `CookieModule`, drops the provider), `auth.controller.ts`, `refresh-cookie.filter.ts` (imports). Remove `TokenService.refreshMaxAgeMs()` and its test |
-| Tests | `refresh-cookie.spec.ts` → `common/cookies/__tests__/`, providers updated (`jwtConfig` instead of `TokenService`). **Run e2e too**: cookie attributes are checked there |
+| Tests | `refresh-cookie.spec.ts` → `common/cookies/__tests__/` (options + service), providers updated (`jwtConfig` instead of `TokenService`). The filter stays in auth, so its tests move to `modules/auth/__tests__/refresh-cookie.filter.spec.ts` (service mocked). **Run e2e too**: cookie attributes are checked there |
 
 ---
 
