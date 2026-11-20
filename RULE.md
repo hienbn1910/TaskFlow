@@ -1,6 +1,7 @@
-# Project Rules — WorkSpace SaaS Platform
+# Project Rules — TaskFlow
 
 > Every code generation must read and follow this file before writing any code.
+> Decisions behind these rules are in [`docs/adr/`](docs/adr/README.md). If a rule here and an ADR disagree, the ADR wins and this file is corrected (ADR-0038).
 
 ---
 
@@ -12,26 +13,28 @@
 ```
 
 ### Step 1: Spec (Specification)
+- Read the ADRs listed for the milestone (WORKFLOW.md §7) first.
 - Clearly describe the feature's requirements, inputs/outputs, and edge cases.
-- Define the scope: identify affected endpoints, modules, and database tables.
-- List the acceptance criteria.
+- Define the scope: identify affected endpoints, socket events, modules, and database tables.
+- List the acceptance criteria. Write the spec to `docs/specs/<branch>.md`.
 ### Step 2: Plan
-- Define the data flow: Controller → Service → Repository.
+- Define the data flow: Controller → Service → Repository, and the domain events published / consumed.
 - List the files that need to be created or modified.
 - Identify the necessary Zod schemas, DTOs, and entity mappings.
-- Determine dependencies on other modules.
+- Determine dependencies on other modules (one direction only, §1).
+- Write the plan to `docs/plans/<branch>.md`. A real choice between alternatives becomes an ADR.
 ### Step 3: Task Decomposition (by AI Agent)
 - Break the feature down into smaller tasks, each capable of being generated independently.
-- Order tasks based on dependencies (Repository → Service → Controller → Tests).
-- Provide a clear description for each task: target file, function, and required logic.
+- Order tasks based on dependencies (Schema → Repository → Service → Controller → Tests → Frontend).
+- Provide a clear description for each task: target file, function, and required logic. Write them to `docs/tasks/<branch>.md`.
 ### Step 4: Code Generation
-- The AI ​​must read `RULE.md` before writing any code.
+- The AI must read `RULE.md` before writing any code.
 - Generate code following the established dependency order.
 - Ensure every file adheres to the defined folder structure and architectural rules.
 ### Step 5: Test Generation
 - Write unit tests for all service methods.
-- Write integration tests for all endpoints.
-- Ensure tests cover both the "happy path" and error scenarios.
+- Write integration tests for all endpoints and socket events.
+- Ensure tests cover both the "happy path" and error scenarios (§7).
 ### Step 6: Test Execution
 - Run the entire test suite—not just the new tests.
 - Ensure no existing tests are broken (prevent regressions).
@@ -41,7 +44,7 @@
 ### Step 8: Performance/Security Check
 - Verify against the Performance Checklist (Section 4).
 - Verify against Security Requirements (Section 5).
-- Crucially: ensure all queries include `workspaceId` and that raw Prisma models are not exposed.
+- Crucially: ensure all queries include `workspaceId`, raw Prisma models are not exposed, and socket events go only to authorized rooms.
 ### Step 9: Refactor
 - Eliminate redundant code.
 - Ensure functions are ≤ 30 lines long and have ≤ 3 parameters.
@@ -49,57 +52,58 @@
 - Verify the order of imports.
 ### Step 10: PR (Pull Request)
 - Follow the commit message format specified in Section 8
+- Update the docs: CLAUDE.md status, ADR index, WORKFLOW.md **and** WORKFLOW-VI.md if the plan changed (ADR-0038)
 - Provide a clear description of the changes in the PR description
 - Ensure that linting, type checking, and all tests pass
 
 ## 1. Folder Structure
 
+### API (`apps/api`)
+
 ```
+prisma/                        # schema.prisma, migrations/, seed.ts (Decision #2)
+prisma7.config.ts              # Prisma CLI config (Decision #12)
+openapi.json                   # Generated API contract, committed (ADR-0033)
 src/
 ├── common/
-│   ├── decorators/            # Custom decorators (@CurrentUser, @WorkspaceId, @Roles)
-│   ├── filters/               # Exception filters (global, http, ws)
-│   ├── guards/                # Auth, Role, Workspace guards
-│   ├── interceptors/          # Response transform, logging, timeout
-│   ├── pipes/                 # Zod validation pipe
-│   ├── middleware/             # Tenant, logger, cors middleware
-│   ├── constants/             # Enums, error codes, config keys
-│   ├── types/                 # Shared TypeScript types/interfaces
+│   ├── constants/             # Error codes, auth constants, config keys
+│   ├── cookies/               # Refresh cookie options + service (Decision #17)
+│   ├── decorators/            # @CurrentUser, @Public, @CurrentWorkspace, @WorkspaceRoles
+│   ├── events/                # Domain event classes shared across modules (ADR-0026)
+│   ├── filters/               # Global exception filter (HTTP); WS exception filter
+│   ├── guards/                # JwtAuthGuard, WorkspaceGuard, OriginGuard
+│   ├── interceptors/          # Response envelope, logging context
+│   ├── types/                 # Shared types, schemas and DTOs used by 2+ modules
 │   └── utils/                 # Pure helper functions (no side effects)
-├── config/
-│   ├── app.config.ts          # Validated env config using Zod
-│   ├── database.config.ts
-│   ├── redis.config.ts
-│   ├── jwt.config.ts
-│   └── index.ts
+├── config/                    # Zod-validated env config (app, database, redis, jwt, …)
+├── generated/                 # Prisma client (gitignored, Decision #12)
 ├── modules/
 │   ├── <feature>/
 │   │   ├── <feature>.controller.ts
 │   │   ├── <feature>.service.ts
 │   │   ├── <feature>.repository.ts
+│   │   ├── <feature>.listener.ts   # Domain event listeners, if any
 │   │   ├── <feature>.module.ts
 │   │   ├── dto/               # Request/Response DTOs with Zod schemas
-│   │   │   ├── create-<feature>.dto.ts
-│   │   │   ├── update-<feature>.dto.ts
-│   │   │   └── <feature>-response.dto.ts
-│   │   ├── entities/          # Prisma-mapped types (NOT raw Prisma types)
+│   │   ├── entities/          # Our own types (NOT raw Prisma types)
 │   │   └── __tests__/
-│   │       ├── <feature>.service.spec.ts
-│   │       └── <feature>.controller.spec.ts
-├── prisma/
-│   ├── schema.prisma
-│   ├── migrations/
-│   └── seed.ts
+│   ├── realtime/              # Socket.io gateway, rooms, presence, event names (ADR-0025)
+│   └── jobs/                  # BullMQ queues, processors, hourly tick (ADR-0027)
+├── prisma/                    # PrismaService + PrismaModule only
+├── setup-app.ts               # HTTP setup shared by main.ts and E2E tests
 ├── app.module.ts
 └── main.ts
+test/                          # E2E / integration tests against the real test database
 ```
+
+### Web (`apps/web`) — see §11
 
 ### Rules:
 - One module per feature — never mix features in one module
 - Every module must have its own dto/ folder — no shared DTOs between modules
-- If two modules need the same DTO, extract it to common/types/
+- If two modules need the same DTO or schema, extract it to common/types/
 - Test files live next to the code they test, inside __tests__/
-- No circular dependencies between modules — if A needs B and B needs A, extract shared logic to a new module
+- No circular dependencies between modules — if A needs B and B needs A, extract shared logic to a new module, or turn the side effect into a domain event (ADR-0026). No `forwardRef`
 
 ---
 
@@ -120,15 +124,18 @@ src/
 
 ### Naming Conventions
 ```
-Files:          kebab-case          → create-workspace.dto.ts
-Classes:        PascalCase          → WorkspaceService
-Interfaces:     PascalCase (no I)   → WorkspaceRepository (not IWorkspaceRepository)
-Functions:      camelCase           → findByWorkspaceId()
-Variables:      camelCase           → workspaceMembers
-Constants:      UPPER_SNAKE_CASE    → MAX_FILE_SIZE
-Enums:          PascalCase          → MemberRole.ADMIN
-DB columns:     camelCase in Prisma → maps to snake_case in PostgreSQL
-API endpoints:  kebab-case          → /api/v1/workspace-members
+Files:           kebab-case          → create-workspace.dto.ts
+Classes:         PascalCase          → WorkspaceService
+Interfaces:      PascalCase (no I)   → WorkspaceRepository (not IWorkspaceRepository)
+Functions:       camelCase           → findByWorkspaceId()
+Variables:       camelCase           → workspaceMembers
+Constants:       UPPER_SNAKE_CASE    → MAX_FILE_SIZE
+Enums:           PascalCase          → MemberRole.ADMIN
+DB columns:      camelCase in Prisma → maps to snake_case in PostgreSQL
+API endpoints:   kebab-case          → /api/v1/workspaces/:workspaceId/transfer-ownership
+Domain events:   entity.action       → message.created, task.assigned   (internal, ADR-0026)
+Socket events:   resource:verb       → message:created, typing:start    (ADR-0025)
+Job names:       queue.action        → email.send, reminders.scan       (ADR-0027)
 ```
 
 ### Function Rules
@@ -142,10 +149,9 @@ API endpoints:  kebab-case          → /api/v1/workspace-members
 ```typescript
 // 1. NestJS/external packages
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '@prisma/client';
 
 // 2. Common/shared modules
-import { WorkspaceGuard } from '@common/guards';
+import { WorkspaceGuard } from '@common/guards/workspace.guard';
 
 // 3. Same module imports
 import { CreateWorkspaceDto } from './dto/create-workspace.dto';
@@ -158,19 +164,20 @@ import { CreateWorkspaceDto } from './dto/create-workspace.dto';
 ### Controller
 - ONLY handles HTTP concerns: parse request, call service, return response
 - No business logic — not even simple if/else conditions
-- Must use DTOs for both input validation and response shaping
+- Must use DTOs for input validation and `@ZodResponse` for response shaping (Decision #13)
 - Must use decorators for auth, roles, workspace context
 
 ```typescript
 // GOOD
 @Post()
-async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: UserEntity) {
+@ZodResponse({ type: WorkspaceResponseDto, status: 201 })
+async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: AuthUser) {
   return this.workspaceService.create(dto, user.id);
 }
 
 // BAD — business logic in controller
 @Post()
-async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: UserEntity) {
+async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: AuthUser) {
   const existing = await this.prisma.workspace.findFirst({ where: { slug: dto.slug } });
   if (existing) throw new ConflictException();
   // ...
@@ -182,18 +189,23 @@ async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: UserEntity) {
 - Calls repository for data access — never calls Prisma directly
 - Must validate business rules before performing actions
 - Returns mapped DTOs/entities — never raw Prisma models
+- **Publishes domain events only after the write has committed** — after the repository call or transaction returns, never inside a `$transaction` callback (ADR-0026)
+- Never calls the WebSocket gateway, the mailer or another feature's write path directly for a side effect: publish an event instead
 
 ### Repository
 - ONLY handles database queries
 - No business logic — no if/else based on business rules
 - Must use Prisma parameterized queries (never raw string interpolation)
-- Every query for tenant-scoped data MUST include workspaceId filter
+- Every query for tenant-scoped data MUST include `workspaceId` **as a direct column** (ADR-0021)
+- Soft-deleted entities: every read includes `deletedAt: null` (ADR-0022)
+- Uniqueness is enforced by database constraints, not by "check then insert" (ADR-0032)
 
 ```typescript
 // GOOD
-async findTasks(workspaceId: string, filters: TaskFilters) {
+async findTasks(workspaceId: string, boardId: string, filters: TaskFilters) {
   return this.prisma.task.findMany({
-    where: { board: { workspaceId }, ...filters },
+    where: { workspaceId, boardId, ...filters },
+    select: TASK_SELECT,
   });
 }
 
@@ -203,6 +215,16 @@ async findTasks(filters: TaskFilters) {
 }
 ```
 
+### Raw SQL (ADR-0024)
+- Only when the Prisma API cannot express the query, only inside a repository
+- Only tagged templates (`$queryRaw\`…${param}\``, `Prisma.sql`) — `$queryRawUnsafe` is forbidden
+- Must include `workspaceId`, must have an integration test
+
+### Listeners and jobs
+- Listeners and job processors are idempotent: running twice = running once
+- A listener never fails the request that published the event: errors are caught and logged with the request id
+- Anything that must happen (emails) is recorded in PostgreSQL in the business transaction; Redis may be wiped at any time (ADR-0027)
+
 ---
 
 ## 4. Performance Checklist
@@ -210,13 +232,15 @@ async findTasks(filters: TaskFilters) {
 > Before writing any data-access code, verify ALL items:
 
 - [ ] **Batch processing** — use `createMany`, `updateMany` instead of loops
-- [ ] **No N+1 queries** — use Prisma `include` or `select` to preload relations
-- [ ] **Pagination required** — every list endpoint must support cursor or offset pagination
+- [ ] **No N+1 queries** — use Prisma `include` or `select` to preload relations; counters (`replyCount`) and grouped queries (unread counts) instead of per-row counts
+- [ ] **Pagination required** — every list endpoint: cursor for messages, offset (limit ≤ 100) for the rest
 - [ ] **Select only needed fields** — use Prisma `select` instead of returning full records
 - [ ] **Single transaction** — multiple related writes must be in `prisma.$transaction()`
-- [ ] **Caching for read-heavy data** — workspace settings, user profile, channel list
-- [ ] **No heavy computation in request cycle** — offload to Bull queue
+- [ ] **No application cache by default** — add one only for an endpoint that misses its WORKFLOW.md §3 target, with a tenant-prefixed key, invalidation on write, TTL ≤ 60 s, and never for auth state (ADR-0019)
+- [ ] **No heavy computation in request cycle** — offload to the queue; jobs stay light (0.1 CPU shared with requests)
 - [ ] **Database indexes** — verify index exists for every WHERE/ORDER BY column
+- [ ] **Free-tier budgets** — nothing periodic more often than hourly; `/health` never touches the database (WORKFLOW.md §3)
+- [ ] **Narrowest socket room** — emit to the channel/board/user room, not the whole workspace (ADR-0025)
 
 ### Forbidden Patterns
 ```typescript
@@ -247,56 +271,73 @@ await this.prisma.task.createMany({ data: items });
 ### Input Validation
 - Every public API endpoint must validate input using Zod schemas
 - Sanitize all string inputs — strip HTML tags, trim whitespace
-- Validate file uploads: size limit, mime type whitelist, filename sanitize
+- Validate file uploads: verified Cloudinary response, folder of the right tenant, size limit, mime allow-list, no SVG / HTML (ADR-0030)
 - URL parameters and query strings must also be validated
+- Socket event payloads are validated with Zod like HTTP bodies
 
 ### Authentication & Authorization
-- JWT access token: 15 minutes expiry, stored in memory (frontend)
-- JWT refresh token: 7 days expiry, stored in httpOnly cookie
-- Refresh token must rotate on every use — invalidate old token
-- Every endpoint must have @UseGuards(JwtAuthGuard) unless explicitly public
+- JWT access token: 15 minutes expiry, kept in memory (frontend)
+- JWT refresh token: 7 days expiry, httpOnly cookie `SameSite=Lax`, rotates on every use, reuse revokes all sessions (Decision #5, ADR-0020)
+- `JwtAuthGuard` is global: every route is protected unless marked `@Public()` (Decision #15)
+- Routes that read the refresh cookie check `Origin` against `FRONTEND_URL` (ADR-0020)
 - Role-based access: check user's role IN THAT WORKSPACE, not global role
+- Tokens of any kind (refresh, invitation, reset, verification) are stored as `sha256` hashes only
 
 ### Multi-Tenant Isolation (CRITICAL)
-- Every database query for tenant data MUST filter by workspaceId
+- Every database query for tenant data MUST filter by workspaceId (direct column, ADR-0021)
 - WorkspaceGuard must run on every workspace-scoped endpoint
 - Never trust workspaceId from request body — derive from URL params + verify membership
-- Test data isolation: write integration tests that verify Workspace A cannot access Workspace B data
+- Non-members get 404, not 403 (do not reveal existence); members without the role get 403
+- Test data isolation: integration tests prove Workspace A cannot read or write Workspace B data, over HTTP **and** sockets
+
+### Real-time (ADR-0025)
+- Socket handshake verified like `JwtAuthGuard`; socket disconnected when the access token expires or sessions are revoked
+- Joining a room requires the same authorization as the matching HTTP route
+- Identity always from `socket.data`, never from the payload
+- Private channel data never goes to a workspace-wide room
+
+### Abuse Limits
+- Rate limits of ADR-0031 on auth, invitations, messages, uploads and socket events; 429 with `Retry-After`
+- `trust proxy` configured so limits apply to the real client IP
 
 ### Data Exposure
 - Never return raw Prisma models to client — always map to response DTOs
-- Never expose: password, refresh tokens, internal IDs of other tenants
-- Mask sensitive fields in logs: email (h***@gmail.com), tokens (first 8 chars only)
+- Never expose: password, tokens or their hashes, internal IDs of other tenants
+- Mask sensitive fields in logs: email (h***@gmail.com), tokens (first 8 chars only); pino `redact` for headers, cookies, passwords
 - Error responses must not expose stack traces, SQL queries, or internal paths in production
+- Every API response sends `Cache-Control: no-store` (ADR-0019)
 
 ### Database
-- All queries must use Prisma (parameterized by default) — no raw SQL string interpolation
-- Soft delete for critical entities (workspace, channel, user) — add `deletedAt` column
+- All queries must use Prisma (parameterized by default) — raw SQL only under §3 "Raw SQL"
+- Soft delete for the entities listed in ADR-0022; uniqueness among live rows via partial unique indexes
+- Composite foreign keys keep children in their parent's workspace (ADR-0021)
 - Encrypt sensitive data at rest if required (API keys, webhook secrets)
 
 ---
 
 ## 6. Error Handling
 
-### Standard Error Response Format
+### Standard Error Response Format (Decision #1)
 ```json
 {
+  "success": false,
   "statusCode": 400,
   "error": "BAD_REQUEST",
   "message": "Human readable message",
   "details": [
     { "field": "email", "message": "Invalid email format" }
   ],
-  "timestamp": "2024-01-01T00:00:00.000Z"
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "requestId": "6f1c…"
 }
 ```
 
 ### Rules
 - Use NestJS built-in exceptions (BadRequestException, NotFoundException, etc.)
 - Create custom exceptions for business logic errors (WorkspaceLimitExceededException)
-- Global exception filter must catch ALL unhandled errors and format them
-- Log full error with stack trace on server — return safe message to client
-- WebSocket errors must also follow the same format
+- Global exception filter must catch ALL unhandled errors and format them; Prisma P2002 → 409, P2025 → 404
+- Log full error with stack trace and request id on server — return safe message to client
+- WebSocket errors use the same fields: in the event's ack (`{ success: false, … }`) or an `exception` event (ADR-0025)
 
 ---
 
@@ -305,7 +346,11 @@ await this.prisma.task.createMany({ data: items });
 ### Minimum Coverage
 - Every service method must have at least one unit test
 - Every API endpoint must have at least one integration test
-- Critical flows must have E2E tests: auth, workspace creation, messaging
+- Every socket event must have an integration test with `socket.io-client`
+- Critical flows must have E2E tests: auth, workspace creation, invitations, messaging, task moves
+- Every workspace feature: an **isolation test** (another tenant gets 404 and no socket events)
+- Every rule of ADR-0032: a **concurrency test** (two competing requests with `Promise.all`)
+- Every listener and job: an **idempotency test** (run twice, same result)
 
 ### Test Naming
 ```typescript
@@ -321,8 +366,10 @@ describe('WorkspaceService', () => {
 ### Rules
 - Tests must not depend on each other — each test sets up its own data
 - Use factories for test data — no hardcoded objects repeated across tests
-- Mock external services (email, file upload) — never call real APIs in tests
+- Mock external services (Cloudinary, Resend) — never call real APIs in tests; locally, emails go to Mailpit
 - Integration tests must use a real test database — not mocked Prisma
+- Compare timestamps as instants (`getTime()`), not strings (ADR-0023)
+- Frontend: Vitest + Testing Library for hooks and critical components; Playwright for end-to-end flows (§11)
 
 ---
 
@@ -343,13 +390,14 @@ chore: update dependencies
 feature/workspace-invitation
 fix/auth-refresh-token
 refactor/task-ordering
+chore/deploy-pipeline
 ```
 
 ### Rules
 - One feature per branch — never mix unrelated changes
 - Commit often with meaningful messages
-- Every PR must pass: lint, type check, all tests
-- Never commit: .env, node_modules, dist/, .DS_Store
+- Every PR must pass: lint, type check, all tests, `openapi.json` up to date
+- Never commit: .env, node_modules, dist/, .DS_Store, generated clients
 
 ---
 
@@ -377,8 +425,10 @@ GET    /api/v1/workspaces/:workspaceId/channels/:channelId/messages
 - Use plural nouns for resources
 - Nested routes for tenant-scoped resources (workspace → channels → messages)
 - Use PATCH for partial updates, PUT for full replacement
-- List endpoints must support: pagination, sorting, filtering
+- List endpoints must support pagination (offset `page`/`limit`, or cursor `before`/`after` for messages), and filtering where the spec lists it
 - Return 201 for created, 200 for success, 204 for delete
+- Tokens (invitation, reset) travel in the POST body, never in an API URL
+- Breaking changes follow expand → migrate → contract: the deployed frontend must keep working (ADR-0033, ADR-0036)
 
 ---
 
@@ -386,13 +436,68 @@ GET    /api/v1/workspaces/:workspaceId/channels/:channelId/messages
 
 > Before generating ANY code, you MUST verify:
 
-1. [ ] Read this RULE.md file
+1. [ ] Read this RULE.md file and the ADRs listed for the milestone
 2. [ ] Identify which module this code belongs to
 3. [ ] Check if similar code already exists — avoid duplication
-4. [ ] Plan the data flow: Controller → Service → Repository
+4. [ ] Plan the data flow: Controller → Service → Repository, plus events published / consumed
 5. [ ] Identify all Zod schemas needed for validation
 6. [ ] Identify all database queries — check for N+1, missing indexes, missing workspaceId
-7. [ ] Identify error cases and how to handle them
-8. [ ] Identify what tests are needed
+7. [ ] Identify error cases, race conditions and how to handle them
+8. [ ] Identify what tests are needed (unit, integration, isolation, concurrency, socket)
 9. [ ] Review generated code against ALL sections of this file
-10. [ ] Verify no `any`, no raw Prisma models in response, no missing auth guards
+10. [ ] Verify no `any`, no raw Prisma models in response, every route guarded or `@Public()`, events emitted after commit to authorized rooms only
+
+---
+
+## 11. Frontend Rules (`apps/web`, ADR-0034)
+
+### Folder Structure
+```
+src/
+├── app/                       # Router, providers, layouts, error boundary
+├── api/
+│   ├── generated/             # Client, hooks and Zod schemas from openapi.json (gitignored)
+│   └── http.ts                # HTTP client: credentials, single-flight refresh, request id
+├── features/
+│   └── <feature>/             # auth, workspaces, channels, messages, boards, notifications
+│       ├── components/
+│       ├── hooks/             # Feature hooks built on the generated query hooks
+│       ├── routes/            # Pages of this feature
+│       └── __tests__/
+├── realtime/                  # Socket connection, event names, event → cache handlers
+├── shared/
+│   ├── ui/                    # Reusable presentational components
+│   └── lib/                   # Pure helpers (formatting dates in local time, cursors…)
+└── main.tsx
+```
+
+### State
+- Server data lives **only** in TanStack Query. Never copy it into Zustand or component state
+- Zustand only for client state not in the URL: access token (memory only, never persisted), socket status, UI preferences
+- Workspace / channel / board ids come from the URL (`/w/:workspaceId/c/:channelId`, `/w/:workspaceId/b/:boardId`)
+
+### Data and Real-time
+- Use the generated client and hooks; never hand-write request or response types for REST
+- Socket events are handled in `src/realtime/` only, which updates the query cache (`setQueryData` for created/updated/deleted, `invalidateQueries` when unsure). Components never subscribe to the socket
+- Deduplicate by id; ignore updates older than the cached `updatedAt`; resync after reconnect (ADR-0025)
+- Optimistic message send with `clientMessageId` (ADR-0024)
+
+### Auth
+- On start: `POST /auth/refresh` once to restore the session
+- On 401: one refresh in flight at a time (single flight), then retry once; if refresh fails, clear memory and query cache and go to login
+- Never store tokens in `localStorage` or `sessionStorage`
+
+### Security
+- No `dangerouslySetInnerHTML`. Messages are plain text; links and mention tokens are rendered by components
+- Remove tokens from the address bar right after reading them (`/invite?token=…`, reset, verify)
+- Security headers and CSP in `vercel.json`
+
+### UI
+- Every screen handles loading, empty and error states
+- Forms: React Hook Form + generated Zod schemas; server validation errors (`details[]`) mapped to fields
+- Dates shown in the user's local time zone; sent as UTC ISO strings
+- Same code style rules as §2 (strict TypeScript, no `any`, functions ≤ 30 lines, async/await)
+
+### Testing
+- Vitest + Testing Library for hooks and critical components (forms, refresh flow, realtime handlers)
+- Playwright for end-to-end critical flows (M7)

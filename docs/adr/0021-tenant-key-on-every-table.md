@@ -16,7 +16,8 @@
    Example: `messages(workspaceId, channelId)` → `channels(workspaceId, id)`.
 3. `tasks` also carries `boardId` (board-wide filters without a join). `(boardId, columnId)` → `board_columns(boardId, id)` guarantees the column belongs to the task's board.
 4. Repositories filter tenant data with `workspaceId` **as a direct column**, never through a relation.
-5. Indexes follow the access path (e.g. `messages(channelId, parentId, createdAt, id)`). `workspaceId` does not need to lead every index: the parent id already implies the tenant.
+5. **Non-members get 404, not 403**, for a workspace and everything under it: the response does not reveal that the workspace or resource exists. A member who lacks the role for an action gets 403.
+6. Indexes follow the access path (e.g. `messages(channelId, parentId, createdAt, id)`). `workspaceId` does not need to lead every index: the parent id already implies the tenant.
 
 ## Alternatives considered
 | Option | Rejected because |

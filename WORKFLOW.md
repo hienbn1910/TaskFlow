@@ -1,8 +1,9 @@
-# WorkSpace — Project Workflow & Master Plan
+# TaskFlow — Project Workflow & Master Plan
 
-> This document is the single source of truth for the entire project.
-> Both human developers and AI assistants must read this before doing any work.
-> Last updated: 2026-11-04
+> The plan for the whole project: scope, architecture, capacity budget, data model, API, features, milestones, deployment.
+> Decisions and their reasons live in [`docs/adr/`](docs/adr/README.md). When this file and an ADR disagree, the ADR wins and this file is corrected (ADR-0038).
+> Vietnamese translation: [WORKFLOW-VI.md](WORKFLOW-VI.md), updated in the same PR as this file.
+> Last updated: 2026-11-21
 
 ---
 
@@ -10,7 +11,7 @@
 
 1. [Project Overview](#1-project-overview)
 2. [Tech Stack & Why](#2-tech-stack--why)
-3. [System Architecture](#3-system-architecture)
+3. [System Architecture](#3-system-architecture) — includes the Non-Functional Requirements & Capacity Budget
 4. [Database Design](#4-database-design)
 5. [API Design](#5-api-design)
 6. [Feature Specifications](#6-feature-specifications)
@@ -23,31 +24,42 @@
 
 ## 1. Project Overview
 
-### What is WorkSpace?
+### What is TaskFlow?
 
-WorkSpace is a **multi-tenant SaaS collaboration platform** where teams can:
+TaskFlow is a **multi-tenant SaaS collaboration platform** where teams can:
 - Create isolated workspaces for their organization
-- Communicate in real-time through channels
+- Communicate in real time through channels
 - Manage tasks on Kanban boards
 - Share files and receive notifications
 
-Think of it as a simplified version of Slack + Trello combined into one app.
+Think of it as a simplified Slack + Trello combined into one app.
 
 ### Why this project?
 
 This project demonstrates to employers that the developer:
 - Can build a production-ready SaaS application
 - Understands multi-tenancy and data isolation
-- Can implement real-time features
-- Knows authentication, authorization, and security best practices
-- Can deploy and maintain a live application
-- Writes clean, tested, documented code
+- Can implement real-time features correctly (authorization, reconnection, consistency)
+- Knows authentication, authorization and security best practices
+- Can deploy **and maintain** a live application within real constraints (free-tier budgets, observability)
+- Writes clean, tested, documented code, and records design decisions with their trade-offs
 
 ### Target audience for this portfolio
 
 - Companies hiring **NestJS / Node.js backend developers**
 - Companies hiring **fullstack TypeScript developers**
 - Companies building **SaaS products**
+
+### Scope
+
+| In scope | Out of scope |
+|---|---|
+| Email + password accounts, email verification, password reset | OAuth / SSO (the guard allows adding it later, Decision #15) |
+| Workspaces, roles, invitations by link and email | Billing, plans, usage limits per customer |
+| Public and private channels, one-level threads, attachments, mentions, typing, presence | Direct messages, reactions, message search, voice / video |
+| Kanban boards with real-time drag and drop, assignment, due dates, reminders | Task comments, sub-tasks, custom fields |
+| In-app and email notifications | Push notifications, notification preferences |
+| Responsive web app | Native mobile apps |
 
 ---
 
@@ -57,44 +69,47 @@ This project demonstrates to employers that the developer:
 
 | Technology | Purpose | Why chosen |
 |---|---|---|
-| **NestJS** | API framework | Modular architecture, built-in DI, TypeScript-first, similar patterns to Angular/ASP.NET — shows strong architectural thinking |
-| **TypeScript** | Language | Type safety, better DX, catches bugs at compile time |
-| **PostgreSQL** | Primary database | Robust, supports complex queries, great for multi-tenant with row-level filtering |
-| **Prisma** | ORM | Type-safe queries, excellent migration system, better DX than TypeORM |
-| **Redis** | Cache + Queue broker | Fast in-memory store for caching, session, and Bull job queue |
-| **Bull** | Background jobs | Reliable job processing, retry logic, built on Redis |
-| **Socket.io** | Real-time | WebSocket with fallback, room-based messaging, wide browser support |
-| **Passport.js** | Authentication | Industry standard for Node.js auth, JWT strategy |
-| **Zod** | Validation | Runtime type checking, schema-first, better than class-validator for strict validation |
-| **Cloudinary** | File storage | Free tier generous, image transformation built-in, easier than S3 for portfolio project |
-| **Nodemailer** | Email | Simple, works with any SMTP provider |
+| **NestJS 11** | API framework | Modular architecture, built-in DI, guards / pipes / interceptors, TypeScript-first |
+| **TypeScript 5.9** (strict) | Language | Type safety (Decision #11 for versions) |
+| **PostgreSQL** (Neon in production) | Primary database, the only durable store | Relational, transactions, partial indexes, composite foreign keys for tenant safety (ADR-0021) |
+| **Prisma 7** + `@prisma/adapter-pg` | ORM, migrations | Type-safe queries, schema-first migrations (Decision #12) |
+| **`@nestjs/jwt`** + custom `JwtAuthGuard` | Authentication | No Passport: only JWT is needed and Passport's types conflict with the no-`any` rule (Decision #15) |
+| **Zod 4** + `nestjs-zod` | Validation, response shaping, OpenAPI | One schema for runtime validation, types and docs (Decision #7, #13) |
+| **bcryptjs** | Password hashing | No native build (Decision #6; to re-measure in production) |
+| **Socket.io** | Real time | Rooms, acknowledgements, auto-reconnect (ADR-0025) |
+| **`@nestjs/event-emitter`** | Domain events | Side effects across modules without imports or cycles (ADR-0026) |
+| **BullMQ** + Redis (Render Key Value in production) | Background jobs | Retries with backoff, repeatable jobs. Redis is disposable: every job can be rebuilt from PostgreSQL (ADR-0027) |
+| **`@nestjs/throttler`** | Rate limiting | In-memory storage on a single instance (ADR-0031) |
+| **nestjs-pino** | Structured logs | JSON, request id, redaction (ADR-0035) |
+| **Cloudinary** | File storage | Signed direct uploads, authenticated delivery for private files (ADR-0030) |
+| **Resend** (HTTP API) | Email | Render's free tier blocks SMTP; Mailpit catches email locally (ADR-0029) |
 
 ### Frontend
 
 | Technology | Purpose | Why chosen |
 |---|---|---|
-| **React 18+** | UI framework | Industry standard, large ecosystem, developer already knows it |
-| **Vite** | Build tool | Fast HMR, simple config, better DX than CRA |
-| **TypeScript** | Language | Consistent with backend, type safety |
-| **TanStack Query** | Server state | Caching, refetching, optimistic updates — handles API state properly |
-| **Zustand** | Client state | Lightweight, simple API, no boilerplate like Redux |
-| **Socket.io-client** | Real-time | Matches backend Socket.io |
-| **dnd-kit** | Drag and drop | Modern, accessible, lightweight — for Kanban board |
-| **Tailwind CSS** | Styling | Utility-first, fast development, consistent design |
-| **React Hook Form + Zod** | Forms | Performance (no unnecessary re-renders), Zod schema shared with backend |
-| **React Router v6** | Routing | Standard for React SPA |
+| **React** + **Vite** + **TypeScript** | UI, build | Industry standard, fast HMR |
+| **TanStack Query** | Server state | Caching, refetching, optimistic updates. The **only** place server data lives (ADR-0034) |
+| **Zustand** | Client state | Access token in memory, socket status, UI preferences |
+| **React Router** | Routing | Workspace / channel / board ids live in the URL |
+| **OpenAPI codegen** (proposal: orval) | API client | Types, hooks and Zod schemas generated from the backend's `openapi.json` (ADR-0033) |
+| **React Hook Form** + generated Zod schemas | Forms | Few re-renders, same rules as the API |
+| **Socket.io-client** | Real time | Matches the backend; one realtime module updates the query cache |
+| **dnd-kit** | Drag and drop | Modern, accessible — for the Kanban board |
+| **Tailwind CSS** | Styling | Utility-first, consistent design tokens |
+| **Vitest** + Testing Library, **Playwright** | Tests | Component tests; end-to-end flows (M7) |
 
 ### DevOps & Infrastructure
 
 | Technology | Purpose | Why chosen |
 |---|---|---|
-| **Docker** | Containerization | Consistent environments, easy deployment |
-| **Docker Compose** | Local development | One command to start all services |
-| **GitHub Actions** | CI/CD | Free for public repos, integrated with GitHub |
-| **Render.com** | Backend hosting | Free tier, supports Docker, auto-deploy from GitHub |
-| **Vercel** | Frontend hosting | Free, optimized for React/Vite, instant deploys |
-| **Neon** | PostgreSQL hosting | Free tier with 0.5GB, serverless PostgreSQL |
-| **Upstash** | Redis hosting | Free tier with 10K commands/day, serverless Redis |
+| **Docker Compose** | Local infrastructure | PostgreSQL (dev + test), Redis, Mailpit. The API runs on the host (Decision #3) |
+| **GitHub Actions** | CI/CD | Lint, typecheck, tests, migration, deploy hook (ADR-0036) |
+| **Render** (Singapore) | API host + Key Value (Redis) | Free tier, one always-on service (ADR-0018) |
+| **Vercel** | Web host + `/api` proxy | Free, static hosting at the edge; the proxy makes the API same-origin (ADR-0020) |
+| **Neon** (Singapore) | PostgreSQL | Free tier, scales to zero; pooled + direct endpoints (ADR-0036) |
+| **Sentry**, **UptimeRobot** | Error tracking, uptime | Free tiers; keep-alive ping on `/health` (ADR-0035) |
+| **Dependabot** | Dependency updates | Weekly |
 
 ---
 
@@ -189,623 +204,761 @@ Multi-region, high availability, zero-downtime guarantees, horizontal scaling (t
 
 ### High-Level Architecture
 
-```
-┌─────────────┐     HTTPS      ┌──────────────────────────────────┐
-│             │ ──────────────► │           BACKEND                │
-│   REACT     │     REST API    │         (NestJS)                 │
-│   (Vite)    │                 │                                  │
-│             │ ◄─────────────► │  ┌─────────┐  ┌──────────────┐  │
-│  Vercel     │   Socket.io     │  │ Guards   │  │ Controllers  │  │
-│             │                 │  │ & Pipes  │──│              │  │
-└─────────────┘                 │  └─────────┘  └──────┬───────┘  │
-                                │                      │          │
-                                │               ┌──────▼───────┐  │
-                                │               │  Services    │  │
-                                │               │  (Business   │  │
-                                │               │   Logic)     │  │
-                                │               └──────┬───────┘  │
-                                │                      │          │
-                                │               ┌──────▼───────┐  │
-                                │               │ Repositories │  │
-                                │               └──────┬───────┘  │
-                                │                      │          │
-                                │  Render.com          │          │
-                                └──────────────────────┼──────────┘
-                                                       │
-                          ┌────────────────────────────┼────────────────┐
-                          │                            │                │
-                   ┌──────▼───────┐           ┌───────▼──────┐  ┌──────▼──────┐
-                   │ PostgreSQL   │           │    Redis     │  │ Cloudinary  │
-                   │ (Neon)       │           │  (Upstash)   │  │ (Files)     │
-                   │              │           │              │  │             │
-                   │ - Users      │           │ - Cache      │  │ - Images    │
-                   │ - Workspaces │           │ - Sessions   │  │ - Documents │
-                   │ - Messages   │           │ - Job Queue  │  │ - Avatars   │
-                   │ - Tasks      │           │ - Pub/Sub    │  │             │
-                   └──────────────┘           └──────────────┘  └─────────────┘
-```
-
-### Request Flow (mỗi request đi qua các bước sau)
+A **modular monolith**: one NestJS process runs the HTTP API, the WebSocket gateway and the job workers (ADR-0018). Everything stateful sits in one region (ADR-0019).
 
 ```
-Client Request
-     │
-     ▼
-[Global Middleware]     → Logger, CORS, Compression, Rate Limit
-     │
-     ▼
-[Auth Guard]           → Verify JWT token, extract user
-     │
-     ▼
-[Workspace Guard]      → Verify user belongs to workspace, extract role
-     │
-     ▼
-[Validation Pipe]      → Validate request body/params using Zod
-     │
-     ▼
-[Controller]           → Parse request, call service
-     │
-     ▼
-[Service]              → Business logic, call repository
-     │
-     ▼
-[Repository]           → Database query (always filtered by workspaceId)
-     │
-     ▼
-[Response Interceptor] → Transform response to standard format
-     │
-     ▼
-Client Response
+                          Browser (React SPA)
+          │ HTTPS  /api/*  (same origin)               │ WebSocket (direct,
+          ▼                                             │ access token in handshake)
+  ┌──────────────────────┐                              │
+  │ Vercel               │ static files                 │
+  │ rewrite /api/* ──────┼──────┐                       │
+  └──────────────────────┘      │ HTTPS                 │
+                                ▼                       ▼
+  ┌──────────────────────────────────────────────────────────────────┐
+  │ Render web service (Singapore) — ONE NestJS process              │
+  │                                                                  │
+  │  HTTP API          Socket.io gateway        BullMQ workers       │
+  │  guards → controllers → services → repositories   + hourly tick  │
+  │                         │                                        │
+  │                         └── domain events (after commit) ──►     │
+  │                             listeners: realtime, notifications,  │
+  │                             mail                                 │
+  └───────┬──────────────────────┬──────────────────────┬────────────┘
+          │                      │                      │ HTTPS
+          ▼                      ▼                      ▼
+  ┌───────────────┐   ┌────────────────────┐   ┌───────────────────────┐
+  │ Neon Postgres │   │ Render Key Value   │   │ Cloudinary (files)  ◄─┼── browser uploads
+  │ (Singapore)   │   │ (Redis, Singapore) │   │ Resend (email API)    │   directly (signed)
+  │ source of     │   │ queue only,        │   │ Sentry (errors)       │
+  │ truth         │   │ disposable         │   └───────────────────────┘
+  └───────────────┘   └────────────────────┘
 ```
 
-### Real-time Architecture (WebSocket)
+### Module Map
+
+Modules depend on each other in one direction only (RULE.md §1). Side effects across modules go through domain events (ADR-0026).
+
+| Module | Owns tables | Publishes events | Listens to | Milestone |
+|---|---|---|---|---|
+| `auth` | `refresh_tokens`, `user_tokens` | `user.sessions-revoked` | — | M1, M6 |
+| `users` | `users` | `user.sessions-revoked` | — | M1 |
+| `workspaces` | `workspaces`, `workspace_members` | `workspace.created`, `member.joined`, `member.left`, `member.removed`, `member.role-changed` | — | M3 |
+| `invitations` | `invitations` | `invitation.created` | — | M3 |
+| `channels` | `channels`, `channel_members` | `channel.created\|updated\|deleted`, `channel.member-added\|removed` | `workspace.created` (create `general`), `member.joined`, `member.left`, `member.removed` | M4 |
+| `messages` | `messages`, `message_attachments` | `message.created\|updated\|deleted` | — | M4 |
+| `uploads` | — (Cloudinary) | — | — | M4 |
+| `realtime` | — (sockets, presence) | — | All events that clients must see; `user.sessions-revoked` | M4 |
+| `boards` | `boards`, `board_columns` | `board.*`, `column.*` | — | M5 |
+| `tasks` | `tasks` | `task.created\|updated\|moved\|deleted`, `task.assigned` | `member.removed` (unassign) | M5 |
+| `notifications` | `notifications` | `notification.created` | `task.assigned`, `message.created`, `member.joined`, `invitation.created`, `reminder.due` | M6 |
+| `mail` | — | — | `invitation.created`, account emails | M6 |
+| `jobs` | — (queues) | `reminder.due` | — | M6 |
+| `health` | — | — | — | M1 |
+
+### Request Flow
 
 ```
-Client connects → Socket.io handshake → JWT verified
+Client request (through the Vercel proxy)
      │
      ▼
-Client joins room → "workspace:{workspaceId}" room
+[Express middleware]   helmet · pino-http (X-Request-Id, one log line) · cookie-parser
      │
      ▼
-When event happens (new message, task update):
-  1. Service processes the action
-  2. Service emits event to WebSocket Gateway
-  3. Gateway broadcasts to room
-  4. All connected clients in that workspace receive update
+[ThrottlerGuard]       rate limits per IP / user (ADR-0031); real IP via trust proxy
+     │
+     ▼
+[JwtAuthGuard]         global; @Public() opts out; HS256; user reloaded (Decision #15)
+     │
+     ▼
+[WorkspaceGuard]       workspace routes: membership + workspace not deleted;
+     │                 attaches workspaceId (from URL only) and role; role check
+     ▼
+[ZodValidationPipe]    body, params, query (Decision #7)
+     │
+     ▼
+[Controller]           HTTP only: read input, call service
+     │
+     ▼
+[Service]              business rules; transaction through repositories;
+     │                 AFTER commit: publish domain events
+     ▼
+[Repository]           Prisma only; workspaceId as a direct column (ADR-0021)
+     │
+     ▼
+[ZodSerializerInterceptor + ResponseInterceptor]
+                       strip unknown fields (Decision #13); { success: true, data, meta? }
+     │
+     ▼
+Client response        Cache-Control: no-store; X-Request-Id
+
+Errors anywhere → GlobalExceptionFilter → { success: false, statusCode, error,
+                  message, details?, timestamp, requestId } (Decision #1)
 ```
 
-### Background Job Flow
+### Real-time Architecture (summary of ADR-0025)
 
 ```
-Service creates job → Bull Queue (Redis)
-     │
+connect(auth.token) ─► verify like JwtAuthGuard ─► join user:{userId}
+                       schedule disconnect at token expiry
+workspace:join      ─► check membership ─► join workspace:{id} + channel:{id} of my channels
+board:join          ─► check membership ─► join board:{id}
+
+Service commits ─► domain event ─► realtime listener ─► emit to the narrowest room:
+   messages / typing → channel:{id}      tasks / columns → board:{id}
+   members / public channels / presence → workspace:{id}
+   notifications / forced logout → user:{id}
+
+Reconnect ─► re-join rooms ─► refetch what may have been missed (REST is the source of truth)
+```
+
+### Background Job Flow (summary of ADR-0026, ADR-0027, ADR-0028)
+
+```
+Business transaction writes the need into PostgreSQL (e.g. invitations.email_sent_at IS NULL)
+     │ commit
      ▼
-Bull Worker picks up job → processes it
-     │
-     ├── Email job: send email via Nodemailer
-     ├── Notification job: create notification + emit WebSocket event
-     └── Cleanup job: remove expired invitations, old notifications
+Enqueue job with a deterministic jobId ──► BullMQ (Redis, disposable)
+     │                                          │
+     │                                    worker (in the API process)
+     │                                          ├── email job → Resend → set email_sent_at
+     │                                          └── fails → retry with backoff (5 attempts)
+     ▼
+Hourly tick at :00 (one database wake-up per hour)
+     ├── reminders.scan: tasks due in ≤ 24 h, reminder_sent_at IS NULL
+     ├── email.sweep:    rows still unsent after 10 min → enqueue again
+     └── cleanup (daily, 20:00 UTC): notifications > 90 days, expired refresh tokens
+```
+
+### Critical Flows
+
+These flows cross several modules. Each step names the decision that governs it.
+
+**1. Send a message (M4)**
+```
+Browser                API                         PostgreSQL        Other browsers
+  │ optimistic message (clientMessageId)
+  │ POST …/messages ───►│ guards, validation, rate limit
+  │                     │ transaction: insert message (unique clientMessageId),
+  │                     │   update parent replyCount if reply ──► commit
+  │                     │ publish message.created (after commit, ADR-0026)
+  │ ◄── 201 message ────│
+  │ replace optimistic  │ realtime listener ─► emit message:created to channel:{id} ──► append if
+  │ by id               │                                                                not present
+  │ (retry after a network error → same clientMessageId → 200 with the same message, ADR-0024)
+```
+
+**2. Reconnect and resync (M4)**
+```
+Socket drops (network, sleep, deploy)
+  → Socket.io reconnects with backoff; the auth callback supplies the current access token
+    (refreshed through REST first if expired)
+  → server re-authenticates; client emits workspace:join (and board:join if a board is open)
+  → client fetches GET …/messages?after=<newest cursor> for the open channel
+  → client invalidates: channel list + unread counts, open board, notification count
+  → events received during the refetch are deduplicated by id (ADR-0025)
+```
+
+**3. Invitation lifecycle (M3, email from M6)**
+```
+ADMIN: POST …/invitations { email, role }
+  → transaction: insert PENDING row (tokenHash, expiresAt = now + 7 days) or rotate the token
+    of the existing PENDING row → commit → publish invitation.created
+  → M3: response contains the link once (copy link). M6: mail listener enqueues the email
+Invitee opens FRONTEND_URL/invite?token=… → page removes the token from the address bar
+  → POST /invitations/preview { token } (public, rate limited): workspace, inviter, email, status
+  → logs in or registers → POST /invitations/accept { token }
+  → transaction: PENDING + not expired → ACCEPTED (exactly 1 row), insert member → commit
+  → publish member.joined → channels listener adds the member to "general" (M4),
+    notifications listener tells admins (M6), realtime emits member:joined
+```
+
+**4. Session in the browser (M2)**
+```
+App start → POST /auth/refresh (cookie, SameSite=Lax, same origin through the proxy)
+  → 200: access token kept in memory; user loaded       → 401: show login
+Any request → 401 → single-flight refresh (other requests wait) → retry once
+  → refresh fails → clear memory and query cache → login page
+Logout → POST /auth/logout → cookie cleared, session deleted → clear caches, disconnect socket
+Password change / reuse detected → all sessions revoked → user.sessions-revoked
+  → realtime disconnects every socket of the user (ADR-0025)
+```
+
+**5. Task assignment and deadline reminder (M5 + M6)**
+```
+PATCH …/tasks/:id/assign { assigneeId } → assignee must be a workspace member
+  → update task (reset reminderSentAt) → commit → publish task.assigned
+  → realtime: task:updated to board:{id}
+  → M6 notifications listener: TASK_ASSIGNED (dedupeKey) → notification:created to user:{assignee}
+Hourly tick → reminders.scan → per task, one transaction: reminderSentAt = now + TASK_DUE_SOON
+  → after commit: notification:created + email job (best effort with retries, ADR-0028)
 ```
 
 ---
 
 ## 4. Database Design
 
+> Tables already built are defined by `apps/api/prisma/schema.prisma`, which wins over this section (ADR-0038). Tables not built yet are specified here and become "implemented" when their milestone adds them.
+
+### Conventions (apply to every table)
+
+| Rule | Detail | Source |
+|---|---|---|
+| Primary keys | `id UUID` (v4), generated by Prisma | — |
+| Naming | camelCase in Prisma, snake_case in PostgreSQL (`@map`, `@@map`) | RULE.md §2 |
+| Timestamps | `timestamptz(3)`, UTC. `createdAt` on every table, `updatedAt` on mutable ones | ADR-0023 |
+| Tenant key | Non-null `workspaceId` on every tenant table. Composite foreign keys `(workspaceId, parentId) → parent(workspaceId, id)` | ADR-0021 |
+| Deletes | Soft or hard per entity, as listed in ADR-0022 | ADR-0022 |
+| Uniqueness with soft delete | Partial unique indexes `WHERE deleted_at IS NULL` | ADR-0022 |
+| Secrets | Tokens stored as `sha256` hashes only | Decision #5, ADR-0022 |
+| Limits | Every string has a maximum length in the Zod schema and, where useful, in the column type | RULE.md §5 |
+
 ### Entity Relationship Diagram
 
 ```
-users ─────────────┐
-  │                 │
-  │ (one to many)   │ (one to many)
-  │                 │
-  ▼                 ▼
-workspace_members  invitations
-  │                 │
-  │ (many to one)   │ (many to one)
-  │                 │
-  ▼                 ▼
-workspaces ────────┘
-  │
-  │ (one to many)
-  ├──────────────────────────┐
-  │                          │
-  ▼                          ▼
-channels                   boards
-  │                          │
-  │ (one to many)            │ (one to many)
-  │                          │
-  ├── channel_members        ├── board_columns
-  │                          │     │
-  ▼                          │     │ (one to many)
-messages                     │     │
-  │                          │     ▼
-  │ (one to many)            │   tasks
-  ▼                          │
-message_attachments          │
-                             │
-notifications ◄──────────────┘ (polymorphic reference)
+users ──┬──< refresh_tokens
+        ├──< user_tokens                       (M6: password reset, email verification)
+        ├──< notifications >── workspaces?     (M6)
+        │
+        └──< workspace_members >── workspaces ──┬──< invitations
+                     │                          │
+                     │                          ├──< channels ──< messages ──< message_attachments
+                     │                          │       │            └──< messages (thread replies)
+                     └──────────────< channel_members ──┘
+                                                │
+                                                └──< boards ──< board_columns ──< tasks >── users (assignee)
+
+Every table right of "workspaces" carries workspaceId (ADR-0021).
 ```
 
-### Complete Schema Definitions
+### Tables
 
-#### users
+#### users — implemented (M1); changes in M2 and M6
 ```
-id            UUID        PRIMARY KEY, default uuid_generate_v4()
-email         VARCHAR     UNIQUE, NOT NULL
-password      VARCHAR     NOT NULL (bcrypt hashed)
-fullName      VARCHAR     NOT NULL
-avatarUrl     VARCHAR     NULLABLE
-isActive      BOOLEAN     DEFAULT true
-lastLoginAt   TIMESTAMP   NULLABLE
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
+id               UUID         PRIMARY KEY
+email            VARCHAR(254) NOT NULL, stored lowercase
+                              UNIQUE WHERE deleted_at IS NULL            (M2, ADR-0022)
+password         VARCHAR      NOT NULL (bcrypt hash)
+fullName         VARCHAR(100) NOT NULL
+avatarUrl        VARCHAR      NULLABLE (Cloudinary public URL, M4)
+isActive         BOOLEAN      DEFAULT true
+emailVerifiedAt  TIMESTAMPTZ  NULLABLE                                   (M6, ADR-0029)
+lastLoginAt      TIMESTAMPTZ  NULLABLE
+deletedAt        TIMESTAMPTZ  NULLABLE (soft delete, Decision #4)
+createdAt / updatedAt
 ```
 
-#### workspaces
+#### refresh_tokens — implemented (M1)
 ```
-id            UUID        PRIMARY KEY
-name          VARCHAR     NOT NULL, max 100 chars
-slug          VARCHAR     UNIQUE, NOT NULL (URL-friendly, lowercase, no spaces)
-description   VARCHAR     NULLABLE, max 500 chars
-logoUrl       VARCHAR     NULLABLE
-ownerId       UUID        FK → users.id, NOT NULL
-deletedAt     TIMESTAMP   NULLABLE (soft delete)
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
+id          UUID        PRIMARY KEY
+userId      UUID        FK → users.id, ON DELETE CASCADE
+tokenHash   VARCHAR     UNIQUE, NOT NULL (sha256 of the refresh JWT, Decision #5)
+expiresAt   TIMESTAMPTZ NOT NULL
+createdAt   TIMESTAMPTZ
 
-INDEX: slug
+INDEX: userId · INDEX: expiresAt (daily cleanup)
+```
+
+#### user_tokens — M6
+```
+id           UUID        PRIMARY KEY
+userId       UUID        FK → users.id, ON DELETE CASCADE
+purpose      ENUM        'RESET_PASSWORD' | 'VERIFY_EMAIL'
+tokenHash    VARCHAR     UNIQUE, NOT NULL
+expiresAt    TIMESTAMPTZ NOT NULL (reset: 1 h, verify: 24 h)
+usedAt       TIMESTAMPTZ NULLABLE (single use)
+emailSentAt  TIMESTAMPTZ NULLABLE (ADR-0026 level 3)
+createdAt    TIMESTAMPTZ
+
+INDEX: (userId, purpose)
+```
+
+#### workspaces — M3
+```
+id           UUID         PRIMARY KEY
+name         VARCHAR(100) NOT NULL
+slug         VARCHAR(50)  NOT NULL, lowercase letters, digits, hyphens
+                          UNIQUE WHERE deleted_at IS NULL
+description  VARCHAR(500) NULLABLE
+logoUrl      VARCHAR      NULLABLE (Cloudinary public URL)
+ownerId      UUID         FK → users.id, NOT NULL (exactly one owner, ADR-0032)
+deletedAt    TIMESTAMPTZ  NULLABLE (soft delete)
+createdAt / updatedAt
+
 INDEX: ownerId
 ```
 
-#### workspace_members
+#### workspace_members — M3
 ```
-id            UUID        PRIMARY KEY
-workspaceId   UUID        FK → workspaces.id, NOT NULL
-userId        UUID        FK → users.id, NOT NULL
-role          ENUM        'OWNER' | 'ADMIN' | 'MEMBER', DEFAULT 'MEMBER'
-joinedAt      TIMESTAMP   DEFAULT now()
+id           UUID        PRIMARY KEY
+workspaceId  UUID        FK → workspaces.id
+userId       UUID        FK → users.id
+role         ENUM        'OWNER' | 'ADMIN' | 'MEMBER', DEFAULT 'MEMBER'
+joinedAt     TIMESTAMPTZ
 
-UNIQUE: (workspaceId, userId)
-INDEX: workspaceId
+UNIQUE: (workspaceId, userId)   — also the target of channel_members' composite FK
 INDEX: userId
 ```
 
-#### channels
+#### invitations — M3
 ```
-id            UUID        PRIMARY KEY
-workspaceId   UUID        FK → workspaces.id, NOT NULL
-name          VARCHAR     NOT NULL, max 80 chars
-description   VARCHAR     NULLABLE, max 300 chars
-type          ENUM        'PUBLIC' | 'PRIVATE', DEFAULT 'PUBLIC'
-createdById   UUID        FK → users.id, NOT NULL
-deletedAt     TIMESTAMP   NULLABLE (soft delete)
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
+id            UUID         PRIMARY KEY
+workspaceId   UUID         FK → workspaces.id
+email         VARCHAR(254) NOT NULL, lowercase
+role          ENUM         'ADMIN' | 'MEMBER', DEFAULT 'MEMBER'
+tokenHash     VARCHAR      UNIQUE, NOT NULL (sha256)
+status        ENUM         'PENDING' | 'ACCEPTED' | 'REVOKED'
+                           ("expired" = PENDING and expiresAt < now, derived)
+invitedById   UUID         FK → users.id
+acceptedById  UUID         FK → users.id, NULLABLE
+expiresAt     TIMESTAMPTZ  NOT NULL (7 days, reset when the token is rotated)
+acceptedAt    TIMESTAMPTZ  NULLABLE
+revokedAt     TIMESTAMPTZ  NULLABLE
+emailSentAt   TIMESTAMPTZ  NULLABLE (M6)
+createdAt / updatedAt
 
-UNIQUE: (workspaceId, name)  — no duplicate channel names in same workspace
+UNIQUE: (workspaceId, email) WHERE status = 'PENDING'          (ADR-0022)
 INDEX: workspaceId
 ```
 
-#### channel_members
+#### channels — M4
 ```
-id            UUID        PRIMARY KEY
-channelId     UUID        FK → channels.id, NOT NULL
-userId        UUID        FK → users.id, NOT NULL
-lastReadAt    TIMESTAMP   NULLABLE (for unread message count)
-joinedAt      TIMESTAMP   DEFAULT now()
+id           UUID         PRIMARY KEY
+workspaceId  UUID         FK → workspaces.id
+name         VARCHAR(80)  NOT NULL
+description  VARCHAR(300) NULLABLE
+type         ENUM         'PUBLIC' | 'PRIVATE', DEFAULT 'PUBLIC'
+isDefault    BOOLEAN      DEFAULT false ("general": cannot be deleted or left)
+createdById  UUID         FK → users.id
+deletedAt    TIMESTAMPTZ  NULLABLE (soft delete)
+createdAt / updatedAt
 
+UNIQUE: (workspaceId, id)                                  — composite FK target
+UNIQUE: (workspaceId, lower(name)) WHERE deleted_at IS NULL (ADR-0022)
+INDEX: workspaceId
+```
+
+#### channel_members — M4
+```
+id           UUID        PRIMARY KEY
+workspaceId  UUID        NOT NULL
+channelId    UUID        NOT NULL
+userId       UUID        NOT NULL
+lastReadAt   TIMESTAMPTZ NULLABLE (unread counts, ADR-0024)
+joinedAt     TIMESTAMPTZ
+
+FK: (workspaceId, channelId) → channels(workspaceId, id)
+FK: (workspaceId, userId)    → workspace_members(workspaceId, userId), ON DELETE CASCADE
+    (a channel member is always a workspace member; leaving the workspace removes them)
 UNIQUE: (channelId, userId)
-INDEX: channelId
 INDEX: userId
 ```
 
-#### messages
+#### messages — M4
 ```
-id            UUID        PRIMARY KEY
-channelId     UUID        FK → channels.id, NOT NULL
-senderId      UUID        FK → users.id, NOT NULL
-content       TEXT        NOT NULL
-parentId      UUID        FK → messages.id, NULLABLE (thread reply)
-isEdited      BOOLEAN     DEFAULT false
-deletedAt     TIMESTAMP   NULLABLE (soft delete)
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
+id               UUID        PRIMARY KEY
+workspaceId      UUID        NOT NULL
+channelId        UUID        NOT NULL
+senderId         UUID        FK → users.id
+parentId         UUID        NULLABLE (thread reply; one level only)
+content          TEXT        NOT NULL, 1–4,000 characters (ADR-0024)
+clientMessageId  UUID        NOT NULL (idempotent send)
+replyCount       INTEGER     DEFAULT 0   (maintained in the reply's transaction)
+lastReplyAt      TIMESTAMPTZ NULLABLE
+editedAt         TIMESTAMPTZ NULLABLE
+deletedAt        TIMESTAMPTZ NULLABLE (soft delete)
+createdAt / updatedAt
 
-INDEX: channelId, createdAt (composite — for paginated message loading)
-INDEX: parentId (for thread queries)
+FK: (workspaceId, channelId) → channels(workspaceId, id)
+FK: (channelId, parentId)    → messages(channelId, id)   (a reply stays in its channel)
+UNIQUE: (workspaceId, id), (channelId, id)                — composite FK targets
+UNIQUE: (channelId, senderId, clientMessageId)
+INDEX: (channelId, parentId, createdAt, id)               — cursor pagination, threads
 ```
 
-#### message_attachments
+#### message_attachments — M4
 ```
-id            UUID        PRIMARY KEY
-messageId     UUID        FK → messages.id, NOT NULL
-fileUrl       VARCHAR     NOT NULL
-fileName      VARCHAR     NOT NULL
-fileSize      INTEGER     NOT NULL (bytes)
-mimeType      VARCHAR     NOT NULL
+id            UUID         PRIMARY KEY
+workspaceId   UUID         NOT NULL
+messageId     UUID         NOT NULL
+publicId      VARCHAR      NOT NULL (Cloudinary, under taskflow/{env}/ws/{workspaceId}/)
+resourceType  ENUM         'IMAGE' | 'FILE'
+fileName      VARCHAR(255) NOT NULL (sanitized for display)
+fileSize      INTEGER      NOT NULL (bytes; images ≤ 5 MB, files ≤ 10 MB)
+mimeType      VARCHAR(100) NOT NULL (allow-list, no SVG / HTML)
+width, height INTEGER      NULLABLE (images)
+createdAt     TIMESTAMPTZ
 
+FK: (workspaceId, messageId) → messages(workspaceId, id)
 INDEX: messageId
 ```
 
-#### boards
+#### boards — M5
 ```
-id            UUID        PRIMARY KEY
-workspaceId   UUID        FK → workspaces.id, NOT NULL
-name          VARCHAR     NOT NULL, max 100 chars
-createdById   UUID        FK → users.id, NOT NULL
-deletedAt     TIMESTAMP   NULLABLE (soft delete)
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
+id           UUID         PRIMARY KEY
+workspaceId  UUID         FK → workspaces.id
+name         VARCHAR(100) NOT NULL
+createdById  UUID         FK → users.id
+deletedAt    TIMESTAMPTZ  NULLABLE (soft delete)
+createdAt / updatedAt
 
+UNIQUE: (workspaceId, id)
 INDEX: workspaceId
 ```
 
-#### board_columns
+#### board_columns — M5
 ```
-id            UUID        PRIMARY KEY
-boardId       UUID        FK → boards.id, NOT NULL
-name          VARCHAR     NOT NULL, max 50 chars
-position      INTEGER     NOT NULL (ordering — 0, 1, 2...)
-color         VARCHAR     NULLABLE (hex color for UI)
-createdAt     TIMESTAMP   DEFAULT now()
+id           UUID        PRIMARY KEY
+workspaceId  UUID        NOT NULL
+boardId      UUID        NOT NULL
+name         VARCHAR(50) NOT NULL
+position     (type decided in M5, ADR-0009; proposal DOUBLE PRECISION, gap 1000)
+color        VARCHAR(7)  NULLABLE (#rrggbb)
+createdAt / updatedAt
 
-INDEX: boardId, position (composite)
-```
-
-#### tasks
-```
-id            UUID        PRIMARY KEY
-columnId      UUID        FK → board_columns.id, NOT NULL
-title         VARCHAR     NOT NULL, max 200 chars
-description   TEXT        NULLABLE
-priority      ENUM        'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', DEFAULT 'MEDIUM'
-dueDate       TIMESTAMP   NULLABLE
-position      INTEGER     NOT NULL (ordering within column)
-assigneeId    UUID        FK → users.id, NULLABLE
-createdById   UUID        FK → users.id, NOT NULL
-completedAt   TIMESTAMP   NULLABLE
-createdAt     TIMESTAMP   DEFAULT now()
-updatedAt     TIMESTAMP   AUTO UPDATE
-
-INDEX: columnId, position (composite)
-INDEX: assigneeId
-INDEX: dueDate (for reminder queries)
+FK: (workspaceId, boardId) → boards(workspaceId, id)
+UNIQUE: (boardId, id)                                      — target for tasks
+INDEX: (boardId, position)
 ```
 
-#### invitations
+#### tasks — M5
 ```
-id            UUID        PRIMARY KEY
-workspaceId   UUID        FK → workspaces.id, NOT NULL
-email         VARCHAR     NOT NULL
-role          ENUM        'ADMIN' | 'MEMBER', DEFAULT 'MEMBER'
-token         VARCHAR     UNIQUE, NOT NULL (random string for invite link)
-status        ENUM        'PENDING' | 'ACCEPTED' | 'EXPIRED', DEFAULT 'PENDING'
-invitedById   UUID        FK → users.id, NOT NULL
-expiresAt     TIMESTAMP   NOT NULL (default: 7 days from creation)
-createdAt     TIMESTAMP   DEFAULT now()
+id              UUID         PRIMARY KEY
+workspaceId     UUID         NOT NULL
+boardId         UUID         NOT NULL (denormalized for board-wide filters)
+columnId        UUID         NOT NULL
+title           VARCHAR(200) NOT NULL
+description     TEXT         NULLABLE, ≤ 10,000 characters
+priority        ENUM         'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT', DEFAULT 'MEDIUM'
+dueDate         TIMESTAMPTZ  NULLABLE
+position        (same type as board_columns.position)
+assigneeId      UUID         FK → users.id, NULLABLE (must be a workspace member: service rule)
+createdById     UUID         FK → users.id
+completedAt     TIMESTAMPTZ  NULLABLE (explicit "mark complete", independent of the column)
+reminderSentAt  TIMESTAMPTZ  NULLABLE (ADR-0028)
+createdAt / updatedAt
 
-UNIQUE: (workspaceId, email) — can't invite same email twice to same workspace
-INDEX: token (for lookup when accepting)
-INDEX: workspaceId
-INDEX: expiresAt (for cleanup job)
+FK: (workspaceId, boardId) → boards(workspaceId, id)
+FK: (boardId, columnId)    → board_columns(boardId, id)    (the column belongs to the task's board)
+INDEX: (columnId, position) · INDEX: (workspaceId, assigneeId) · INDEX: dueDate
 ```
 
-#### notifications
+#### notifications — M6
 ```
-id              UUID        PRIMARY KEY
-userId          UUID        FK → users.id, NOT NULL (who receives this)
-type            ENUM        'TASK_ASSIGNED' | 'TASK_DUE_SOON' | 'MESSAGE_MENTION'
+id             UUID         PRIMARY KEY
+userId         UUID         FK → users.id (recipient)
+workspaceId    UUID         FK → workspaces.id, NULLABLE
+type           ENUM         'TASK_ASSIGNED' | 'TASK_DUE_SOON' | 'MESSAGE_MENTION'
                             | 'INVITATION_RECEIVED' | 'MEMBER_JOINED'
-title           VARCHAR     NOT NULL
-content         VARCHAR     NULLABLE
-referenceId     UUID        NULLABLE (ID of related entity)
-referenceType   ENUM        'TASK' | 'MESSAGE' | 'INVITATION' | 'WORKSPACE', NULLABLE
-workspaceId     UUID        FK → workspaces.id, NULLABLE (for grouping)
-isRead          BOOLEAN     DEFAULT false
-createdAt       TIMESTAMP   DEFAULT now()
+title          VARCHAR(200) NOT NULL
+content        VARCHAR(500) NULLABLE
+referenceId    UUID         NULLABLE (no FK: polymorphic; the reader handles a deleted target)
+referenceType  ENUM         'TASK' | 'MESSAGE' | 'INVITATION' | 'WORKSPACE', NULLABLE
+dedupeKey      VARCHAR(200) UNIQUE (makes listeners idempotent, ADR-0026)
+readAt         TIMESTAMPTZ  NULLABLE
+createdAt      TIMESTAMPTZ
 
-INDEX: userId, isRead, createdAt (composite — for "unread notifications" query)
-INDEX: workspaceId
-```
-
-#### refresh_tokens
-```
-id            UUID        PRIMARY KEY
-userId        UUID        FK → users.id, NOT NULL
-token         VARCHAR     UNIQUE, NOT NULL (hashed)
-expiresAt     TIMESTAMP   NOT NULL
-createdAt     TIMESTAMP   DEFAULT now()
-
-INDEX: userId
-INDEX: token
-INDEX: expiresAt (for cleanup)
+INDEX: (userId, readAt, createdAt) · INDEX: workspaceId
+Retention: deleted after 90 days (daily cleanup, ADR-0027)
 ```
 
 ---
 
 ## 5. API Design
 
+### Conventions
+
+| Topic | Rule |
+|---|---|
+| Base path | `/api/v1` (RULE.md §9). In production the browser calls it on the web origin, proxied by Vercel (ADR-0020) |
+| Authentication | `Authorization: Bearer <access token>` on every route except `@Public()` ones. The refresh cookie is sent only to `/api/v1/auth/*` |
+| Tenant | Workspace routes are nested under `/workspaces/:workspaceId`. The id comes **only** from the URL (RULE.md §5) |
+| Ids and times | UUIDs; ISO 8601 UTC strings (`…Z`) |
+| Offset lists | `?page=1&limit=20` (`limit` ≤ 100) → `meta: { total, page, limit, totalPages }` |
+| Cursor lists | `?before=<cursor>` or `?after=<cursor>` and `limit` (≤ 50) → `meta: { nextCursor, hasMore }`. Cursors are opaque strings |
+| Status codes | 200 OK, 201 created, 204 deleted / no content, 400 validation or business rule, 401 not authenticated, 403 not allowed, 404 not found (also for resources of another tenant), 409 conflict, 429 rate limited |
+| Headers | `X-Request-Id` on every response; `Retry-After` on 429; `Cache-Control: no-store` on every response (ADR-0019) |
+| Contract | `apps/api/openapi.json`, generated and committed; the frontend client is generated from it (ADR-0033) |
+
 ### Standard Response Format
 
 ```json
 // Success (single item)
-{
-  "success": true,
-  "data": { ... }
-}
+{ "success": true, "data": { ... } }
 
-// Success (list with pagination)
-{
-  "success": true,
-  "data": [ ... ],
-  "meta": {
-    "total": 100,
-    "page": 1,
-    "limit": 20,
-    "totalPages": 5
-  }
-}
+// Success (offset list)
+{ "success": true, "data": [ ... ], "meta": { "total": 100, "page": 1, "limit": 20, "totalPages": 5 } }
 
-// Error
+// Success (cursor list)
+{ "success": true, "data": [ ... ], "meta": { "nextCursor": "eyJj…", "hasMore": true } }
+
+// Error (Decision #1)
 {
   "success": false,
   "statusCode": 400,
   "error": "BAD_REQUEST",
   "message": "Human readable message",
-  "details": [
-    { "field": "email", "message": "Invalid email format" }
-  ],
-  "timestamp": "2024-01-01T00:00:00.000Z"
+  "details": [ { "field": "email", "message": "Invalid email format" } ],
+  "timestamp": "2026-01-01T00:00:00.000Z",
+  "requestId": "6f1c…"
 }
 ```
 
-### Complete Endpoint List
+### Endpoint List
 
-#### Auth Module — `/api/v1/auth`
+#### Health — `/api/v1/health` (M1, M2)
 ```
-POST   /register              Register new account
-POST   /login                 Login, returns access + refresh token
-POST   /refresh               Refresh access token using refresh token
-POST   /logout                Invalidate refresh token
-POST   /forgot-password       Send password reset email
-POST   /reset-password        Reset password with token
-GET    /me                    Get current user profile
+GET    /                      Liveness. No database, no Redis (keep-alive target)      @Public
+GET    /ready                 Readiness: database + Redis (M2, ADR-0035)                @Public
 ```
 
-#### Users Module — `/api/v1/users`
+#### Auth — `/api/v1/auth`
 ```
-PATCH  /profile               Update current user profile
-PATCH  /avatar                Upload/change avatar
-PATCH  /password              Change password (requires current password)
-```
-
-#### Workspaces Module — `/api/v1/workspaces`
-```
-GET    /                      List workspaces current user belongs to
-POST   /                      Create new workspace
-GET    /:workspaceId          Get workspace details
-PATCH  /:workspaceId          Update workspace (OWNER, ADMIN only)
-DELETE /:workspaceId          Soft delete workspace (OWNER only)
+POST   /register              Register; returns access token, sets refresh cookie       @Public  M1
+POST   /login                 Login; same response                                      @Public  M1
+POST   /refresh               Rotate refresh cookie, return new access token            @Public  M1  (Origin check, M2)
+POST   /logout                Delete the session, clear the cookie                      @Public  M1  (Origin check, M2)
+GET    /me                    Current user                                                       M1
+POST   /forgot-password       Send a reset email (same response whether or not the
+                              email exists)                                             @Public  M6
+POST   /reset-password        Reset with token; revokes all sessions                    @Public  M6
+POST   /verify-email          Verify with token                                         @Public  M6
+POST   /resend-verification   Send the verification email again                                  M6
 ```
 
-#### Workspace Members — `/api/v1/workspaces/:workspaceId/members`
+#### Users — `/api/v1/users`
 ```
-GET    /                      List workspace members
-PATCH  /:memberId/role        Change member role (OWNER, ADMIN only)
-DELETE /:memberId             Remove member (OWNER, ADMIN only)
-POST   /leave                 Leave workspace (not for OWNER)
-```
-
-#### Invitations — `/api/v1/workspaces/:workspaceId/invitations`
-```
-GET    /                      List pending invitations (ADMIN+)
-POST   /                      Invite member by email (ADMIN+)
-DELETE /:invitationId         Cancel invitation (ADMIN+)
-POST   /accept/:token         Accept invitation (public, no workspace guard)
+PATCH  /profile               Update full name                                                   M1
+PATCH  /password              Change password (current password required);
+                              revokes other sessions                                             M1
+POST   /avatar/signature      Cloudinary upload signature for an avatar                          M4
+PATCH  /avatar                Save the uploaded avatar (verified Cloudinary response)            M4
 ```
 
-#### Channels — `/api/v1/workspaces/:workspaceId/channels`
+#### Workspaces — `/api/v1/workspaces` (M3)
 ```
-GET    /                      List channels in workspace
+GET    /                                  Workspaces I belong to (paginated)
+POST   /                                  Create (I become OWNER)
+GET    /:workspaceId                      Details
+PATCH  /:workspaceId                      Update name, description, logo (OWNER, ADMIN)
+DELETE /:workspaceId                      Soft delete (OWNER)
+POST   /:workspaceId/transfer-ownership   Make another member OWNER (OWNER)
+POST   /:workspaceId/uploads/signature    Upload signature: attachment | workspace-logo  (M4)
+```
+
+#### Workspace Members — `/api/v1/workspaces/:workspaceId/members` (M3)
+```
+GET    /                      List members (paginated; includes `online`, M4)
+PATCH  /:memberId/role        Change role (OWNER: anyone but self; ADMIN: MEMBERs only)
+DELETE /:memberId             Remove member (same rule)
+POST   /leave                 Leave (not the OWNER)
+```
+
+#### Invitations — `/api/v1/workspaces/:workspaceId/invitations` (M3)
+```
+GET    /                      Pending invitations (ADMIN+, paginated)
+POST   /                      Invite { email, role }; re-inviting rotates the token
+                              (ADMIN+; 20/day per workspace). Returns the link once
+DELETE /:invitationId         Revoke (ADMIN+)
+```
+
+#### Invitations, invitee side — `/api/v1/invitations` (M3)
+```
+POST   /preview               { token } → workspace name, inviter, email, status   @Public (rate limited)
+POST   /accept                { token } → join the workspace (email must match; verified from M6)
+```
+
+#### Channels — `/api/v1/workspaces/:workspaceId/channels` (M4)
+```
+GET    /                      Channels I can see (public + private where I am a member)
+GET    /unread-counts         Unread count per channel, one query (ADR-0024)
 POST   /                      Create channel
-GET    /:channelId            Get channel details
-PATCH  /:channelId            Update channel
-DELETE /:channelId            Soft delete channel (ADMIN+)
-POST   /:channelId/join       Join public channel
-POST   /:channelId/leave      Leave channel
+GET    /:channelId            Details
+PATCH  /:channelId            Update name, description (creator or ADMIN+)
+DELETE /:channelId            Soft delete (ADMIN+; not "general")
+POST   /:channelId/join       Join a public channel
+POST   /:channelId/leave      Leave (not "general")
 GET    /:channelId/members    List channel members
+POST   /:channelId/members    Add a member to a private channel (channel member or ADMIN+)
+DELETE /:channelId/members/:userId   Remove from a private channel
+POST   /:channelId/read       Mark as read (sets lastReadAt)
 ```
 
-#### Messages — `/api/v1/workspaces/:workspaceId/channels/:channelId/messages`
+#### Messages — `/api/v1/workspaces/:workspaceId/channels/:channelId/messages` (M4)
 ```
-GET    /                      List messages (paginated, cursor-based)
-POST   /                      Send message
-PATCH  /:messageId            Edit message (sender only)
-DELETE /:messageId            Soft delete message (sender or ADMIN)
-GET    /:messageId/thread     Get thread replies
-```
-
-#### Boards — `/api/v1/workspaces/:workspaceId/boards`
-```
-GET    /                      List boards in workspace
-POST   /                      Create board
-GET    /:boardId              Get board with columns and tasks
-PATCH  /:boardId              Update board name
-DELETE /:boardId              Soft delete board (ADMIN+)
+GET    /                      Top-level messages, ?before= / ?after= cursors
+POST   /                      Send { content, clientMessageId, parentId?, attachments? }
+                              (idempotent; 10 / 10 s per user)
+PATCH  /:messageId            Edit own message
+DELETE /:messageId            Soft delete (sender or ADMIN+)
+GET    /:messageId/thread     Replies, same cursor rules
 ```
 
-#### Board Columns — `/api/v1/workspaces/:workspaceId/boards/:boardId/columns`
+#### Boards — `/api/v1/workspaces/:workspaceId/boards` (M5)
+```
+GET    /                      List boards (paginated)
+POST   /                      Create board (default columns: Todo, In Progress, Done)
+GET    /:boardId              Board with columns and up to 500 tasks
+PATCH  /:boardId              Rename
+DELETE /:boardId              Soft delete (ADMIN+)
+```
+
+#### Board Columns — `/api/v1/workspaces/:workspaceId/boards/:boardId/columns` (M5)
 ```
 POST   /                      Create column
-PATCH  /:columnId             Update column (name, color)
-DELETE /:columnId             Delete column (must be empty or move tasks)
-PATCH  /reorder               Reorder columns (send array of { id, position })
+PATCH  /reorder               Reorder { columnIds: [...] } (declared before /:columnId)
+PATCH  /:columnId             Update name, color
+DELETE /:columnId             Delete (only when empty)
 ```
 
-#### Tasks — `/api/v1/workspaces/:workspaceId/boards/:boardId/tasks`
+#### Tasks — `/api/v1/workspaces/:workspaceId/boards/:boardId/tasks` (M5)
 ```
-GET    /                      List tasks (filter by column, assignee, priority, due date)
+GET    /                      List; filters columnId, assigneeId, priority, dueFrom, dueTo (paginated)
 POST   /                      Create task
-GET    /:taskId               Get task details
-PATCH  /:taskId               Update task
-DELETE /:taskId               Delete task
-PATCH  /:taskId/move          Move task to another column + position (drag-drop)
-PATCH  /:taskId/assign        Assign/unassign member
+GET    /:taskId               Details
+PATCH  /:taskId               Update title, description, priority, dueDate, completed
+DELETE /:taskId               Delete
+PATCH  /:taskId/move          Move { columnId, beforeTaskId?, afterTaskId? }; the server
+                              computes the position from the neighbours (ADR-0009)
+PATCH  /:taskId/assign        Assign { assigneeId } or unassign { assigneeId: null }
 ```
 
-#### Notifications — `/api/v1/notifications`
+#### Notifications — `/api/v1/notifications` (M6)
 ```
-GET    /                      List notifications for current user (paginated)
-GET    /unread-count          Get unread notification count
-PATCH  /:notificationId/read  Mark as read
+GET    /                      My notifications (paginated)
+GET    /unread-count          Unread count
 PATCH  /read-all              Mark all as read
-```
-
-#### Uploads — `/api/v1/uploads`
-```
-POST   /image                 Upload image (avatar, workspace logo)
-POST   /file                  Upload file (message attachment)
+PATCH  /:notificationId/read  Mark one as read
 ```
 
 ### WebSocket Events
 
-```
-// Client → Server
-socket.emit('join-workspace', { workspaceId })
-socket.emit('leave-workspace', { workspaceId })
-socket.emit('join-channel', { channelId })
-socket.emit('leave-channel', { channelId })
-socket.emit('typing', { channelId, userId })
-socket.emit('stop-typing', { channelId, userId })
+Full rules in ADR-0025. Payloads are `{ workspaceId, occurredAt, data }`, where `data` is the REST response DTO of the resource.
 
-// Server → Client
-socket.on('new-message', { message, channelId })
-socket.on('message-updated', { message, channelId })
-socket.on('message-deleted', { messageId, channelId })
-socket.on('user-typing', { channelId, userId, fullName })
-socket.on('user-stop-typing', { channelId, userId })
-socket.on('task-updated', { task, boardId })
-socket.on('task-moved', { taskId, fromColumnId, toColumnId, position })
-socket.on('member-joined', { workspaceId, user })
-socket.on('member-left', { workspaceId, userId })
-socket.on('notification', { notification })
-```
+| Direction | Event | Room | Data | Milestone |
+|---|---|---|---|---|
+| C → S | `workspace:join` | — | `{ workspaceId }` (ack) | M4 |
+| C → S | `board:join`, `board:leave` | — | `{ workspaceId, boardId }` (ack) | M5 |
+| C → S | `typing:start`, `typing:stop` | — | `{ workspaceId, channelId }` (ack) | M4 |
+| S → C | `message:created`, `message:updated` | `channel:{id}` | Message | M4 |
+| S → C | `message:deleted` | `channel:{id}` | `{ id, channelId, parentId }` | M4 |
+| S → C | `typing:started`, `typing:stopped` | `channel:{id}` | `{ channelId, userId, fullName }` | M4 |
+| S → C | `channel:created`, `channel:updated`, `channel:deleted` | `workspace:{id}` (public) or `channel:{id}` + user rooms (private) | Channel | M4 |
+| S → C | `channel:removed` | `user:{id}` | `{ channelId }` | M4 |
+| S → C | `member:joined`, `member:left`, `member:role-changed` | `workspace:{id}` | Member | M4 |
+| S → C | `presence:online`, `presence:offline` | `workspace:{id}` | `{ userId }` | M4 |
+| S → C | `workspace:removed` | `user:{id}` | `{ workspaceId }` | M4 |
+| S → C | `task:created`, `task:updated`, `task:moved` | `board:{id}` | Task | M5 |
+| S → C | `task:deleted` | `board:{id}` | `{ id, columnId }` | M5 |
+| S → C | `column:created`, `column:updated`, `column:deleted`, `columns:reordered` | `board:{id}` | Column / `{ columnIds }` | M5 |
+| S → C | `notification:created` | `user:{id}` | Notification | M6 |
+| S → C | `exception` | the socket | Error shape of Decision #1 | M4 |
 
 ---
 
 ## 6. Feature Specifications
 
-### Feature 1: Authentication
+### Feature 1: Authentication (M1; M2 hardening; M6 email flows)
 
-**User Registration**
-- Input: email, password, fullName
-- Validate: email format, password min 8 chars (1 uppercase, 1 number)
-- Check email not already registered
-- Hash password with bcrypt (salt rounds: 10)
-- Create user record
-- Generate JWT access token (15 min) + refresh token (7 days)
-- Store hashed refresh token in database
-- Return tokens + user profile (without password)
+**Register**
+- Input: email (trimmed, lowercased), password (≥ 8 characters, one uppercase letter, one digit, ≤ 72 bytes), fullName.
+- Email must not belong to a non-deleted user → otherwise 409.
+- Hash with bcryptjs, cost 10 (Decision #6). Create the user.
+- Issue an access token (15 min) and a refresh token (7 days); store `sha256(refresh)`; refresh token only in the httpOnly cookie (Decision #5).
+- M6: send the verification email (`user_tokens`, level-3 email, ADR-0026).
 
-**User Login**
-- Input: email, password
-- Find user by email
-- Compare password with bcrypt
-- If match: generate new token pair, store refresh token
-- If not match: return 401 (do NOT say "wrong password" — say "invalid credentials" to prevent email enumeration)
+**Login**
+- Same response for an unknown email and a wrong password: 401 "invalid credentials".
+- A blocked or deleted user cannot sign in (`canSignIn`).
+- Rate limited (ADR-0031).
 
-**Token Refresh**
-- Input: refresh token (from httpOnly cookie)
-- Find token in database
-- If not found or expired: return 401
-- If found: delete old token, generate new pair, store new refresh token
-- This is called "refresh token rotation" — prevents token reuse attacks
+**Refresh** (rotation with reuse detection)
+- Read the cookie (Origin must be `FRONTEND_URL`, ADR-0020). Verify the JWT, then delete its hash.
+- Deleted 1 row → issue a new pair. Deleted 0 rows → the token was already used: **revoke every session** of the user, 401, clear the cookie.
 
 **Logout**
-- Delete refresh token from database
-- Client clears access token from memory
+- Delete the session, clear the cookie. The client clears its memory, caches and socket.
 
-### Feature 2: Workspaces
+**Password reset and email verification (M6)**
+- Single-use hashed tokens in `user_tokens`; reset tokens expire after 1 h, verification after 24 h.
+- `forgot-password` answers the same way whether or not the email exists.
+- A successful reset revokes every session.
 
-**Create Workspace**
-- Input: name, slug (optional — auto-generate from name if not provided)
-- Validate slug is URL-friendly (lowercase, alphanumeric + hyphens)
-- Check slug not taken
-- Create workspace
-- Create workspace_member record with role OWNER for creator
-- Auto-create a "general" channel
+### Feature 2: Workspaces, Members, Invitations (M3)
 
-**Workspace Guard (runs on every workspace request)**
+**Create workspace**
+- Input: name, optional slug. Without a slug, generate one from the name; on a unique conflict retry with a random suffix (≤ 3 times, ADR-0032).
+- One transaction: workspace + OWNER member. After commit: `workspace.created` (M4 creates "general" from it).
+
+**WorkspaceGuard (every workspace route)**
 ```
-1. Extract workspaceId from URL params
-2. Find workspace_member where workspaceId + userId
-3. If not found → 403 Forbidden
-4. Attach workspaceId and memberRole to request object
-5. All subsequent queries use this workspaceId
-```
-
-### Feature 3: Channels & Messaging
-
-**Send Message**
-- Validate user is member of channel
-- Create message record
-- If has attachments: upload files, create attachment records
-- Emit 'new-message' via WebSocket to channel room
-- Create notifications for @mentioned users (parse content for @mentions)
-
-**Load Messages (cursor-based pagination)**
-```
-GET /messages?cursor=<lastMessageId>&limit=20
-
-Why cursor-based instead of offset?
-- Offset pagination breaks when new messages arrive (items shift)
-- Cursor pagination is stable — always loads messages before/after a fixed point
-- Better performance on large datasets (no OFFSET scan)
+1. workspaceId from the URL params only
+2. Find the membership (workspaceId, userId) where the workspace is not deleted
+3. Not found → 404 (do not reveal that the workspace exists)
+4. Attach workspaceId and role to the request; check @WorkspaceRoles(...)
+5. Repositories filter tenant data by this workspaceId (ADR-0021)
 ```
 
-**Typing Indicator**
-- Client sends 'typing' event when user starts typing
-- Server broadcasts to channel room
-- Client sends 'stop-typing' after 3 seconds of no keypress
-- Server-side timeout: auto-clear typing after 5 seconds (in case client disconnects)
+**Role matrix**
 
-### Feature 4: Kanban Board
+| Action | OWNER | ADMIN | MEMBER |
+|---|---|---|---|
+| Update workspace | ✅ | ✅ | ❌ |
+| Delete workspace, transfer ownership | ✅ | ❌ | ❌ |
+| Invite, revoke invitations | ✅ | ✅ | ❌ |
+| Change role / remove an ADMIN | ✅ | ❌ | ❌ |
+| Change role / remove a MEMBER | ✅ | ✅ | ❌ |
+| Leave | ❌ (transfer first) | ✅ | ✅ |
+| Delete any channel / board, delete others' messages | ✅ | ✅ | ❌ |
 
-**Drag and Drop — Position Management**
+**Invitations:** lifecycle in ADR-0022, accept rules in ADR-0032, flow in §3 "Critical Flows 3". Leaving or being removed unassigns the member's tasks and removes their channel memberships (cascade).
+
+### Feature 3: Channels & Messaging (M4)
+
+**Channels**
+- Every workspace has a default public channel "general" (`isDefault`): every member is in it; it cannot be deleted or left.
+- Public channels: any member can see and join. Private channels: visible only to their members; members are added by a channel member or ADMIN+.
+
+**Send message**
+- REST only. Validate: channel membership, content 1–4,000 characters, mentions limited to channel members, ≤ 5 attachments (verified uploads, ADR-0030).
+- One transaction: insert (idempotent by `clientMessageId`), update the parent's `replyCount` / `lastReplyAt` for a reply.
+- After commit: `message.created` → socket event to `channel:{id}`; M6: mention notifications.
+
+**Load messages:** cursor pagination `(createdAt, id)`; `before` to scroll up, `after` to resync (ADR-0024). Offset pagination is not used here because new messages shift pages.
+
+**Unread:** `lastReadAt` per channel member; the sidebar loads all counts in one query; opening a channel marks it read.
+
+**Typing and presence:** ADR-0025 (server-side identity, throttling, 5 s auto-stop, 10 s offline grace).
+
+**Attachments:** signed direct upload, private delivery for attachments (ADR-0030).
+
+### Feature 4: Kanban Board (M5)
+
+**Positioning:** decided at the start of M5 (ADR-0009; proposal: gap-based floating positions with rebalancing). The client sends the neighbours (`beforeTaskId`, `afterTaskId`); the server computes the position in one locking transaction, so two concurrent moves cannot produce equal positions.
+
+**Assignment:** the assignee must be a workspace member. Changing the assignee or the due date resets `reminderSentAt`. After commit: `task.assigned`.
+
+**Completion:** `completedAt` is an explicit flag ("mark complete"), independent of the column names chosen by users.
+
+**Reminders:** hourly scan, 23–24 h before the deadline, once per due date (ADR-0028).
+
+**Filters:** assignee, priority, due range, column; offset pagination.
+
+### Feature 5: Notifications (M6)
+
+**Types and triggers** (each created by a listener, idempotent through `dedupeKey`)
 ```
-When task moves from Column A position 2 → Column B position 1:
-
-1. Update moved task: columnId = B, position = 1
-2. Tasks in Column B with position >= 1: increment position by 1
-3. Tasks in Column A with position > 2: decrement position by 1
-4. All in a single database transaction
-
-Gap-based positioning (alternative, simpler):
-- Instead of 0, 1, 2, 3 use 1000, 2000, 3000, 4000
-- Moving between 2000 and 3000 → set position to 2500
-- Only rebalance when gap gets too small (< 1)
-- Fewer database updates per move
-```
-
-**Task Assignment**
-- When assigning a task to a user, verify user is workspace member
-- Create notification for assignee
-- If task has dueDate, schedule reminder job
-
-### Feature 5: Notifications
-
-**Types and Triggers**
-```
-TASK_ASSIGNED       → when someone assigns a task to you
-TASK_DUE_SOON       → 24 hours before due date (background job)
-MESSAGE_MENTION     → when someone @mentions you in a message
-INVITATION_RECEIVED → when you're invited to a workspace
-MEMBER_JOINED       → when someone joins your workspace (notify admins)
+TASK_ASSIGNED       ← task.assigned                  to the assignee (not when self-assigned)
+TASK_DUE_SOON       ← hourly reminders.scan          to the assignee
+MESSAGE_MENTION     ← message.created with mentions  to mentioned channel members
+INVITATION_RECEIVED ← invitation.created             to the invitee, if they already have an account
+MEMBER_JOINED       ← member.joined                  to OWNER and ADMINs
 ```
 
 **Delivery**
-- In-app: create notification record + emit WebSocket event
-- Email: for INVITATION_RECEIVED and TASK_DUE_SOON (via background job)
+- In app: row + `notification:created` to `user:{id}` (best effort, ADR-0026 level 2).
+- Email: invitations (to the address, level 3), deadline reminders (best effort with retries), account emails (level 3).
+- Retention: 90 days.
 
 ---
 
@@ -950,13 +1103,13 @@ Decisions: ADR-0001 … ADR-0017.
 ```
 
 **Tests (in addition to unit and endpoint tests):**
-- Isolation suite: a member of workspace A gets 403/404 on **every** workspace-B endpoint (read and write)
+- Isolation suite: a member of workspace A gets 404 on **every** workspace-B endpoint (read and write), never data (ADR-0021)
 - Concurrency: double accept, slug race (ADR-0032)
 - Role matrix: OWNER / ADMIN / MEMBER × every member and invitation action
 
 **Completion criteria (on production):**
 - [ ] Create a workspace, copy an invite link, a second account accepts it, both see each other in members
-- [ ] A MEMBER cannot invite (403); an outsider gets 403 on every URL of the workspace
+- [ ] A MEMBER cannot invite (403); an outsider gets 404 on every URL of the workspace
 - [ ] Expired and revoked links show a clear message; accepting with another email is refused
 - [ ] Ownership can be transferred; the owner cannot leave before transferring
 
@@ -1162,116 +1315,95 @@ Decisions: ADR-0001 … ADR-0017.
 
 ### Local Development
 
-```yaml
-# docker-compose.yml
-services:
-  postgres:
-    image: postgres:16-alpine
-    environment:
-      POSTGRES_USER: workspace
-      POSTGRES_PASSWORD: workspace123
-      POSTGRES_DB: workspace_dev
-    ports:
-      - "5432:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
+Infrastructure runs in Docker, the API and the web app run on the host (Decision #3).
 
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  backend:
-    build: ./backend
-    ports:
-      - "3000:3000"
-    environment:
-      DATABASE_URL: postgresql://workspace:workspace123@postgres:5432/workspace_dev
-      REDIS_URL: redis://redis:6379
-      JWT_SECRET: dev-secret-change-in-production
-      # ... other env vars
-    depends_on:
-      - postgres
-      - redis
-    volumes:
-      - ./backend/src:/app/src  # hot reload
-
-volumes:
-  postgres_data:
 ```
+docker compose up -d       postgres (5432), postgres-test (5433, tmpfs), redis (6379)
+                           + mailpit (SMTP 1025, web UI 8025) from M6 (ADR-0029)
+pnpm --filter api db:migrate
+pnpm dev                   API on :3000 (watch); from M2 also the web app on :5173
+```
+
+The Vite dev server proxies `/api` to `localhost:3000`, so local development has the same single-origin setup as production (ADR-0020). Copy `.env.example` to `.env` and `.env.test`.
 
 ### Production Architecture
 
 ```
-GitHub Push
-     │
-     ▼
-GitHub Actions ──── Lint + Type Check + Test
-     │
-     ├── Backend passes → Auto-deploy to Render.com
-     │                     └── Connects to Neon (PostgreSQL)
-     │                     └── Connects to Upstash (Redis)
-     │                     └── Connects to Cloudinary (Files)
-     │
-     └── Frontend passes → Auto-deploy to Vercel
-                            └── Connects to Render backend URL
+Pull request ──► GitHub Actions: lint → typecheck → unit → integration + E2E
+                 (Postgres + Redis service containers) → openapi.json up to date → web build
+
+Merge to main ─► same checks ─► prisma migrate deploy (DIRECT_DATABASE_URL, Neon)
+                              ─► Render deploy hook (auto-deploy OFF: code never runs
+                                 before its migration)
+              ─► Vercel builds and deploys the web app from main (preview deployments OFF)
+
+Browser ─► Vercel (static + /api/* rewrite) ─► Render web service ─► Neon (pooled)
+        ─► Render web service directly for the WebSocket                 Render Key Value
+                                                                         Cloudinary · Resend · Sentry
+UptimeRobot ─► GET /api/v1/health every 5 min (keeps Render awake; never touches the database)
 ```
+
+Migrations follow expand → migrate → contract (ADR-0036): every migration must work with the code that is already deployed.
+
+### Services
+
+| Service | Settings |
+|---|---|
+| Render web service | Region Singapore. Build `pnpm install --frozen-lockfile && pnpm --filter api build`. Start `pnpm --filter api start`. Health check path `/api/v1/health`. Auto-deploy off; deploy hook stored as a GitHub secret |
+| Render Key Value | Region Singapore (same as the web service). Internal URL as `REDIS_URL`. Free plan: in-memory only (ADR-0027) |
+| Neon | Region `ap-southeast-1` (Singapore). Pooled URL → `DATABASE_URL`; direct URL → `DIRECT_DATABASE_URL` (CI secret and Render) |
+| Vercel | Root `apps/web`. `vercel.json`: rewrite `/api/:path*` → `https://<render-service>.onrender.com/api/:path*`, SPA fallback to `index.html`, security headers + CSP. Preview deployments disabled |
+| Cloudinary | Folders `taskflow/{env}/…`; attachments uploaded as `authenticated` (ADR-0030) |
+| Resend | Verified sending domain (ADR-0029 open question) |
+| Sentry | Projects for API and web; DSNs as env vars |
+| UptimeRobot | HTTP monitor on `/api/v1/health`, 5-minute interval, email alerts |
 
 ### Environment Variables (production)
 
 ```
-# Backend (.env.production)
+# API (Render)
 NODE_ENV=production
 PORT=3000
+LOG_LEVEL=info
+TRUST_PROXY=<value verified in M2>          # ADR-0020: number of proxy hops (Vercel → Render)
 
-# Database
-DATABASE_URL=postgresql://user:pass@neon-host/workspace_prod?sslmode=require
+DATABASE_URL=postgresql://…-pooler…/taskflow?sslmode=require     # runtime, pooled
+DIRECT_DATABASE_URL=postgresql://…/taskflow?sslmode=require      # Prisma CLI only
 
-# Redis
-REDIS_URL=rediss://default:pass@upstash-host:6379
+REDIS_URL=redis://red-…:6379                # Render Key Value internal URL
 
-# JWT
-JWT_ACCESS_SECRET=<random-64-char-string>
-JWT_REFRESH_SECRET=<different-random-64-char-string>
+JWT_ACCESS_SECRET=<random, ≥ 32 chars>
+JWT_REFRESH_SECRET=<different random, ≥ 32 chars>
 JWT_ACCESS_EXPIRY=15m
 JWT_REFRESH_EXPIRY=7d
 
-# Cloudinary
-CLOUDINARY_CLOUD_NAME=xxx
-CLOUDINARY_API_KEY=xxx
-CLOUDINARY_API_SECRET=xxx
+FRONTEND_URL=https://<app>.vercel.app       # Origin check, socket CORS, links in emails
 
-# Email (use Gmail SMTP or Resend for free)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USER=xxx
-SMTP_PASS=xxx
+CLOUDINARY_CLOUD_NAME=…                     # M4
+CLOUDINARY_API_KEY=…
+CLOUDINARY_API_SECRET=…
 
-# Frontend URL (for CORS)
-FRONTEND_URL=https://workspace-app.vercel.app
+MAIL_PROVIDER=resend                        # M6 (smtp locally → Mailpit)
+MAIL_FROM=TaskFlow <no-reply@<domain>>
+RESEND_API_KEY=…
 
-# Backend URL (for email links)
-BACKEND_URL=https://workspace-api.onrender.com
+SENTRY_DSN=…
+
+# Web (Vercel, build time)
+VITE_SOCKET_URL=https://<render-service>.onrender.com   # WebSocket goes direct (ADR-0020)
+VITE_SENTRY_DSN=…
 ```
 
-### Free Tier Limits to Know
+No `BACKEND_URL` (email links point to the frontend) and no SMTP settings in production (ADR-0029). `.env.example` lists every key with a safe placeholder.
 
-```
-Neon (PostgreSQL):     0.5 GB storage, auto-suspend after 5 min idle
-Upstash (Redis):       10,000 commands/day, 256 MB storage
-Render (Backend):      Spins down after 15 min inactivity, 750 hours/month
-Vercel (Frontend):     100 GB bandwidth/month, unlimited deploys
-Cloudinary (Files):    25 GB storage, 25 GB bandwidth/month
-```
+### Free-Tier Limits
 
-### Handling Free Tier Sleep
+Verified limits, budgets and the risks still to measure are in §3 "Non-Functional Requirements & Capacity Budget". Summary of the operational rules that follow from them:
 
-Render free tier puts the service to sleep after 15 minutes of inactivity. First request after sleep takes ~30 seconds (cold start).
-
-Options:
-1. **Add note in README**: "First load may take 30s due to free hosting cold start"
-2. **Setup cron ping**: use a free service like UptimeRobot to ping health endpoint every 14 minutes
-3. **Health endpoint**: GET /api/v1/health returns { status: 'ok', timestamp: ... }
+- Exactly one always-on Render service (750 h/month): API, gateway and workers in one process.
+- Render sleeps after 15 minutes without traffic and takes ~1 minute to wake: UptimeRobot pings `/health` every 5 minutes. `/health` never touches the database, so Neon can still scale to zero.
+- Periodic jobs run at most hourly, all at minute :00, so Neon wakes once per hour.
+- Redis may be wiped at any time: nothing lives only in Redis.
 
 ---
 
@@ -1280,91 +1412,82 @@ Options:
 ### For the Human Developer
 
 ```
-1. Pick a milestone
-2. Read the milestone's tasks
-3. For each task:
-   a. Write a clear prompt describing what you need
-   b. Include context: which module, which files exist, what's already done
-   c. Review the generated code against RULE.md
-   d. Test it manually
-   e. Commit with meaningful message
-4. When milestone is complete, review all code once more
-5. Move to next milestone
+1. Open the current milestone in §7 and CLAUDE.md "Current Milestone"
+2. Read the ADRs listed under "Read first"
+3. For each branch, follow RULE.md §0:
+   a. Spec   → docs/specs/<branch>.md   (scope, inputs/outputs, edge cases, acceptance criteria)
+   b. Plan   → docs/plans/<branch>.md   (data flow, files, schemas, dependencies, decisions)
+   c. Tasks  → docs/tasks/<branch>.md   (small, ordered, one commit each)
+   d. Code + tests per task; full test run; performance and security checklists; refactor
+   e. Update docs (CLAUDE.md status, ADR index, WORKFLOW.md + WORKFLOW-VI.md if changed)
+   f. PR: lint, typecheck, all tests green
+4. Check the milestone's completion criteria on production, then move on
 ```
 
 ### For AI Assistants
 
 ```
 Before generating ANY code:
-1. Read RULE.md — follow all rules strictly
-2. Read this WORKFLOW.md — understand the full context
-3. Check which milestone is being worked on
-4. Check what already exists (ask if unsure)
-5. Generate code that:
-   - Follows the folder structure in RULE.md
-   - Uses the tech stack defined in this document
-   - Follows the API design patterns defined here
-   - Includes proper error handling
-   - Includes proper TypeScript types
-   - Is ready for the developer to review and commit
+1. Read CLAUDE.md (entry point), then RULE.md
+2. Read the ADRs listed for the current milestone and the WORKFLOW.md sections of the feature
+3. Check what already exists in the code; never duplicate
+4. If a request conflicts with an ADR, RULE.md or this file: say so and follow the documents
 
-When asked to implement a feature:
-1. Start with Prisma schema changes (if any)
-2. Then repository layer
-3. Then service layer (with business logic)
-4. Then DTOs with Zod validation
-5. Then controller
-6. Then tests
-7. Always explain what you built and why
+When implementing a feature (inside the Development Flow):
+1. Prisma schema + migration (review the generated SQL: ADR-0022, ADR-0023, ADR-0036)
+2. Repository (workspaceId as a direct column)
+3. Service (business rules, transactions, domain events after commit)
+4. DTOs (Zod) and controller (@ZodResponse)
+5. Tests: unit for services, integration for endpoints, isolation and concurrency where relevant
+6. Frontend: generated client, hooks, components, realtime cache updates
+7. Explain what was built and why
 
-When asked to fix a bug:
-1. Identify the root cause first
-2. Explain why the bug happens
-3. Fix it
-4. Add a test that would have caught this bug
+When fixing a bug:
+1. Find the root cause first and explain it
+2. Write a test that fails because of the bug
+3. Fix it; the test passes; run the full suite
 ```
 
 ### Prompt Templates for Common Tasks
 
 **Implementing a new feature:**
 ```
-Implement the [feature name] feature for milestone [N].
+Implement [feature] for milestone [N], branch [name].
 
 Context:
-- Current module: [module name]
+- Spec / plan / tasks: docs/specs|plans|tasks/[branch].md
+- ADRs: [list]
 - Related existing files: [list]
-- Database tables involved: [list]
+- Tables involved: [list]
 
-Requirements:
-- [Copy tasks from milestone section]
-
-Follow RULE.md and WORKFLOW.md.
+Follow RULE.md, the ADRs and WORKFLOW.md.
 ```
 
 **Adding a new endpoint:**
 ```
-Add [HTTP_METHOD] [endpoint path] endpoint.
+Add [METHOD] [path].
 
-This endpoint should:
+It should:
 - [What it does]
 - [Validation rules]
 - [Who can access it — which roles]
-- [What it returns]
+- [What it returns, which events it publishes]
 
-Related Prisma model: [model name]
-Follow the Controller → Service → Repository pattern from RULE.md.
+Related Prisma model: [model]
+Follow Controller → Service → Repository (RULE.md §3).
 ```
 
 **Fixing a bug:**
 ```
-Bug: [Description of what's wrong]
-Expected: [What should happen]
-Actual: [What actually happens]
+Bug: [what is wrong]
+Expected: [what should happen]
+Actual: [what happens]
+Request id / logs: [if from production]
 
 Relevant files:
-- [file paths]
+- [paths]
 
-Find the root cause, fix it, and add a test.
+Find the root cause, add a failing test, fix it.
 ```
 
 ---
@@ -1372,11 +1495,17 @@ Find the root cause, fix it, and add a test.
 ## 10. Reference Files
 
 ```
-WORKFLOW.md          ← This file (project plan, you are here)
-RULE.md              ← Code rules and standards
-README.md            ← Public project documentation (created in milestone 8)
-.env.example         ← Environment variable template
-docker-compose.yml   ← Local development setup
+CLAUDE.md                        ← Entry point: rules for agents, current status, decision index
+RULE.md                          ← Code rules and standards (backend §1–§10, frontend §11)
+WORKFLOW.md                      ← This file: plan, NFR, architecture, schema, API, milestones
+WORKFLOW-VI.md                   ← Vietnamese translation of this file + glossary
+docs/adr/                        ← Architecture Decision Records (one decision per file)
+docs/specs/ docs/plans/ docs/tasks/   ← Per-branch spec, plan, task list
+apps/api/prisma/schema.prisma    ← Source of truth for implemented tables
+apps/api/openapi.json            ← Generated API contract (from M2)
+.env.example                     ← Every environment variable with a placeholder
+docker-compose.yml               ← Local infrastructure
+README.md                        ← Public project documentation (completed in M7)
 ```
 
 ---
@@ -1386,3 +1515,4 @@ docker-compose.yml   ← Local development setup
 | Date | Change |
 |---|---|
 | 2026-11-04 | Initial workflow document created |
+| 2026-11-21 | System design review: Non-Functional Requirements & Capacity Budget (§3); architecture, module map and critical flows (§3); schema with tenant keys, composite FKs, timestamptz, partial unique indexes (§4); API conventions and endpoints updated (§5); features updated (§6); milestones re-planned as vertical slices deployed from M2 (§7); deployment updated for verified free-tier limits (§8). Decisions recorded as ADR-0001 … ADR-0038 |

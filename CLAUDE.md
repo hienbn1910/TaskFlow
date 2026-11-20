@@ -9,9 +9,9 @@
 
 **Taskflow** is a multi-tenant SaaS collaboration platform with real-time messaging, Kanban boards, and workspace management. Built as a portfolio project demonstrating enterprise-level architecture.
 
-- **Backend:** NestJS + Prisma + PostgreSQL + Redis + Socket.io + Bull
+- **Backend:** NestJS + Prisma + PostgreSQL + Redis + Socket.io + BullMQ
 - **Frontend:** React + Vite + TanStack Query + Zustand + Socket.io-client
-- **Architecture:** Multi-tenant with row-level isolation via workspaceId
+- **Architecture:** Modular monolith (one process: API, gateway, workers), multi-tenant with row-level isolation via `workspaceId`, deployed on free tiers within a written capacity budget
 
 ---
 
@@ -19,9 +19,11 @@
 
 1. **`RULE.md`** — Code standards, development flow, architecture rules, security requirements, performance checklist. Contains Section 0 (Development Flow) which defines the mandatory 10-step process for every feature.
 
-2. **`WORKFLOW.md`** — Full project plan: database schema (12 tables), API endpoints (40+), WebSocket events, feature specifications, 8 milestones with tasks and completion criteria, deployment plan.
+2. **`WORKFLOW.md`** — Full project plan: non-functional requirements and capacity budget (§3), architecture and critical flows, database schema (14 tables), API endpoints and WebSocket events, feature specifications, 7 vertical-slice milestones with completion criteria, deployment plan.
 
-3. **`apps/api/prisma/schema.prisma`** — Source of truth for database structure. Never contradict this file.
+3. **`docs/adr/`** — Architecture Decision Records. Read the ADRs listed for the current milestone before its spec. They override conflicting text elsewhere.
+
+4. **`apps/api/prisma/schema.prisma`** — Source of truth for the tables already built. Never contradict this file.
 
 ---
 
@@ -41,8 +43,8 @@ Full details in **RULE.md Section 0**.
 ## AI Agent Behavior Rules
 
 ### Before Writing Code
-- [ ] Read RULE.md (especially Section 0 and Section 10)
-- [ ] Read relevant parts of WORKFLOW.md for the feature being built
+- [ ] Read RULE.md (especially Section 0 and Section 10; Section 11 for frontend code)
+- [ ] Read the ADRs listed for the milestone and the relevant parts of WORKFLOW.md
 - [ ] Check existing code — never duplicate what already exists
 - [ ] Identify the module, data flow, and all files to create/modify
 
@@ -54,6 +56,7 @@ Full details in **RULE.md Section 0**.
 - No `any` type — use `unknown` and narrow
 - Functions max 30 lines, max 3 parameters
 - Always async/await, never .then()/.catch()
+- Publish domain events only after commit; never call the gateway or mailer directly from a service
 
 ### After Writing Code
 - Generate tests for every service method and endpoint
@@ -85,14 +88,17 @@ taskflow/
 │   │   ├── prisma/                   # schema.prisma, migrations, seed (Prisma CLI convention)
 │   │   ├── test/                     # E2E tests
 │   │   └── package.json
-│   └── web/                          # React + Vite frontend
+│   └── web/                          # React + Vite frontend (from M2, RULE.md §11)
 │       ├── src/
 │       └── package.json
-├── docker-compose.yml                # PostgreSQL (dev + test) + Redis for local dev
+├── docs/
+│   ├── adr/                          # Architecture Decision Records (index: README.md)
+│   ├── specs/ plans/ tasks/          # Per-branch spec, plan, task list (RULE.md §0)
+├── docker-compose.yml                # PostgreSQL (dev + test) + Redis (+ Mailpit from M6)
 ├── pnpm-workspace.yaml               # pnpm workspaces monorepo
 ├── RULE.md                           # Code rules and standards
 ├── WORKFLOW.md                       # Project plan and specifications
-├── WORKFLOW-VI.md                    # Vietnamese translation + glossary
+├── WORKFLOW-VI.md                    # Vietnamese translation + glossary (same PR as WORKFLOW.md)
 └── CLAUDE.md                         # This file
 ```
 
@@ -100,33 +106,38 @@ taskflow/
 
 ## Key Architecture Decisions
 
-### Multi-Tenant Isolation
-- Row-level isolation: every tenant-scoped table has `workspaceId`
-- WorkspaceGuard validates membership on every request
-- workspaceId comes from URL params, NEVER from request body
-- Integration tests must verify cross-tenant data isolation
+Summary only — the reasons are in the ADRs.
 
-### Authentication
-- JWT access token: 15min, stored in memory (frontend)
-- JWT refresh token: 7 days, httpOnly cookie, rotates on every use
-- All endpoints require `@UseGuards(JwtAuthGuard)` unless explicitly public
+### Capacity and Topology (WORKFLOW.md §3, ADR-0018, 0019)
+- One NestJS process (API + Socket.io + BullMQ workers), one instance, Singapore region for Render, Key Value and Neon
+- Free-tier budgets: Neon awake ≤ ~400 h/month → periodic work at most hourly, `/health` never touches the DB
+- No application cache until a measurement asks for one; `Cache-Control: no-store`
 
-### Real-Time
-- Socket.io with JWT authentication on connection
-- Users join workspace/channel rooms
-- Events: message:new, message:updated, message:deleted, notification:new, task:updated, member:online/offline
+### Multi-Tenant Isolation (ADR-0021)
+- Every tenant table has a non-null `workspaceId`; composite FKs keep children in their parent's workspace
+- WorkspaceGuard validates membership on every request; workspaceId comes from URL params, NEVER from the body
+- Non-members get 404; integration tests verify isolation over HTTP and sockets
 
-### Background Jobs
-- Bull queues with Redis for: email sending, deadline reminders, stale invitation cleanup
-- No heavy computation in request cycle
+### Authentication (Decision #5, #15, ADR-0020, 0031)
+- JWT access token: 15 min, in memory (frontend). Refresh token: 7 days, httpOnly `SameSite=Lax` cookie, rotated, reuse revokes all sessions
+- Global `JwtAuthGuard`; `@Public()` opts out. Origin check on cookie routes. Rate limits from M2
+- Production web and API share one origin through the Vercel `/api` proxy
 
-### Pagination
-- Messages: cursor-based (for real-time consistency)
-- Other lists: offset-based with configurable limit
+### Real-Time (ADR-0025)
+- Handshake with the access token; disconnected at expiry or on session revocation
+- Rooms `user:` / `workspace:` / `channel:` / `board:`, each join authorized; private channel data only in its channel room
+- Events `resource:verb` (`message:created`, `task:moved`, `notification:created`…); best effort, client resyncs after reconnect
 
-### Kanban Positioning
-- Gap-based positioning (increment 1000) for drag-drop reordering
-- Rebalance when gap < 1
+### Side Effects and Background Jobs (ADR-0026, 0027, 0028)
+- Domain events after commit; pushes and in-app notifications best effort; emails at least once via a DB flag + hourly sweep
+- BullMQ on Render Key Value; Redis is disposable; one hourly tick (reminders, sweep) + daily cleanup
+
+### Pagination (ADR-0024)
+- Messages: cursor `(createdAt, id)`, `before` / `after`
+- Other lists: offset, `limit` ≤ 100
+
+### Kanban Positioning (Decision #9, decided in M5)
+- Proposal: gap-based float positions (increment 1000), rebalance when gap < 1, moves in one locking transaction
 
 ---
 
@@ -137,13 +148,16 @@ taskflow/
 | Runtime | Node.js + NestJS | Enterprise patterns, DI, modular |
 | Database | PostgreSQL (Neon for prod) | Relational, ACID, row-level security |
 | ORM | Prisma | Type-safe, migrations, schema-first |
-| Cache/Queue | Redis (Upstash for prod) | Bull queues, session cache |
-| Auth | JWT (access + refresh) | Stateless, rotation for security |
-| Validation | Zod | Runtime + TypeScript inference |
-| WebSocket | Socket.io | Room-based, auto-reconnect |
+| Queue | BullMQ + Redis (Render Key Value for prod) | Retries, repeatable jobs; Redis disposable (ADR-0027) |
+| Auth | JWT (access + refresh), custom guard | Stateless, rotation for security (Decision #15) |
+| Validation | Zod (`nestjs-zod`) | Runtime + TypeScript inference + OpenAPI |
+| WebSocket | Socket.io | Room-based, acks, auto-reconnect |
 | Frontend | React + Vite | Fast HMR, SPA |
 | State | Zustand + TanStack Query | Server state vs client state separation |
-| Deploy | Render.com (API) + Vercel (Web) | Free tier, auto-deploy from GitHub |
+| API contract | Committed `openapi.json` → generated client | No hand-written FE types (ADR-0033) |
+| Email / files | Resend (HTTP API) / Cloudinary (signed direct upload) | SMTP blocked on Render free; no file bytes through the API |
+| Observability | pino, request id, Sentry, UptimeRobot | ADR-0035 |
+| Deploy | Render (API) + Vercel (web + `/api` proxy) + Neon | Free tier; CI migrates then triggers the deploy hook (ADR-0036) |
 
 ---
 
