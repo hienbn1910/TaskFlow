@@ -101,7 +101,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 
 ## Verification
 
-### - [ ] U8. Integration tests
+### - [x] U8. Integration tests
 
 | | |
 |---|---|
