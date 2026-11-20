@@ -184,19 +184,40 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [2](docs/adr/0002-prisma-file-location.md) | Prisma schema/migrations/seed in `apps/api/prisma/`; `src/prisma/` = service + module only | Accepted |
 | [3](docs/adr/0003-docker-compose-infrastructure-only.md) | Compose runs postgres (5432), postgres-test (5433, tmpfs), redis; API runs with `pnpm dev` | Accepted |
 | [4](docs/adr/0004-users-soft-delete.md) | `users.deletedAt` (soft delete) | Accepted |
-| [5](docs/adr/0005-refresh-token-storage.md) | Refresh JWT only in httpOnly cookie, DB stores `sha256`, reuse revokes all sessions | Accepted |
-| [6](docs/adr/0006-password-hashing-bcryptjs.md) | `bcryptjs`, cost 10 | Accepted, re-measure in production |
+| [5](docs/adr/0005-refresh-token-storage.md) | Refresh JWT only in httpOnly cookie, DB stores `sha256`, reuse revokes all sessions | Accepted, amended by 20 |
+| [6](docs/adr/0006-password-hashing-bcryptjs.md) | `bcryptjs`, cost 10 | Accepted, re-measure in M2 |
 | [7](docs/adr/0007-validation-zod.md) | Zod via `nestjs-zod` | Accepted |
-| [8](docs/adr/0008-websocket-event-names.md) | WebSocket event names | Deferred |
-| [9](docs/adr/0009-kanban-position-type.md) | Kanban `position` type (proposal: Float, gap-based) | Deferred |
-| [10](docs/adr/0010-bull-vs-bullmq.md) | Bull vs BullMQ | Deferred |
+| [8](docs/adr/0008-websocket-event-names.md) | WebSocket event names | Superseded by 25 |
+| [9](docs/adr/0009-kanban-position-type.md) | Kanban `position` type (proposal: Float, gap-based) | Deferred to M5 |
+| [10](docs/adr/0010-bull-vs-bullmq.md) | Bull vs BullMQ | Superseded by 27 |
 | [11](docs/adr/0011-package-versions.md) | NestJS 11, TS 5.9, Prisma 7.10, Zod 4, `@nestjs/jwt` 11.x | Accepted |
-| [12](docs/adr/0012-prisma-7-specifics.md) | `prisma7.config.ts`, client in `src/generated/prisma`, `adapter-pg` | Accepted |
+| [12](docs/adr/0012-prisma-7-specifics.md) | `prisma7.config.ts`, client in `src/generated/prisma`, `adapter-pg` | Accepted, amended by 36 |
 | [13](docs/adr/0013-response-shaping-zod-response.md) | `@ZodResponse` on every endpoint | Accepted |
 | [14](docs/adr/0014-jest-commonjs.md) | Jest runs CommonJS; `pnpm typecheck` checks tests | Accepted |
 | [15](docs/adr/0015-custom-jwt-guard.md) | Custom global `JwtAuthGuard`, no Passport, user reloaded per request | Accepted |
-| [16](docs/adr/0016-deferred-password-reset-and-rate-limit.md) | Password reset and rate limiting deferred | Accepted |
+| [16](docs/adr/0016-deferred-password-reset-and-rate-limit.md) | Password reset in M6; rate limiting deferred | Amended by 31, 37 |
 | [17](docs/adr/0017-users-auth-module-boundaries.md) | Auth → users module boundaries, no cycles | Accepted |
+| [18](docs/adr/0018-modular-monolith-single-instance.md) | Modular monolith: API + gateway + workers in one process, one instance; scale-out path documented | Accepted |
+| [19](docs/adr/0019-region-colocation-no-cache.md) | Render, Key Value, Neon in one region (Singapore); no app cache until measured; `Cache-Control: no-store` | Accepted |
+| [20](docs/adr/0020-same-origin-proxy-cookie-csrf.md) | Vercel/Vite proxy `/api` → same origin; cookie `SameSite=Lax`; Origin check on cookie routes; socket direct with token | Accepted |
+| [21](docs/adr/0021-tenant-key-on-every-table.md) | `workspaceId` on every tenant table + composite FKs `(workspaceId, parentId)` | Accepted |
+| [22](docs/adr/0022-soft-delete-and-uniqueness.md) | Delete kind per entity; partial unique indexes; invitations PENDING → ACCEPTED/REVOKED, token hashed | Accepted |
+| [23](docs/adr/0023-timestamptz-utc.md) | Every `DateTime` is `@db.Timestamptz(3)` | Accepted |
+| [24](docs/adr/0024-messaging-data-model.md) | Cursor `(createdAt, id)`; one-level threads with counters; unread in one query; 4,000-char limit; `clientMessageId`; raw SQL policy | Accepted |
+| [25](docs/adr/0025-realtime-design.md) | Socket auth lifecycle; rooms `user`/`workspace`/`channel`/`board`; `resource:verb` events; best-effort + resync | Accepted |
+| [26](docs/adr/0026-domain-events-after-commit.md) | Domain events after commit; data = transaction, pushes = best effort, emails = DB flag + sweep | Accepted |
+| [27](docs/adr/0027-background-jobs-bullmq-disposable-redis.md) | BullMQ on Render Key Value; Redis disposable; all periodic jobs on one hourly tick | Accepted |
+| [28](docs/adr/0028-deadline-reminders-hourly-scan.md) | Reminders by hourly scan + `reminderSentAt` | Accepted |
+| [29](docs/adr/0029-email-delivery.md) | `MailService` port, HTTP API in prod, Mailpit locally, links to `FRONTEND_URL`, email verification in M6 | Accepted, domain open |
+| [30](docs/adr/0030-file-uploads.md) | Signed direct upload to Cloudinary; attachments `authenticated`; no SVG/HTML | Accepted |
+| [31](docs/adr/0031-rate-limiting-before-deploy.md) | `@nestjs/throttler` in memory from M2; limits table | Accepted |
+| [32](docs/adr/0032-concurrency-rules.md) | Uniqueness in DB; atomic invitation accept; single owner + transfer; last write wins | Accepted |
+| [33](docs/adr/0033-api-contract-openapi-codegen.md) | Committed `openapi.json` → generated FE client; socket payloads = REST DTOs | Accepted |
+| [34](docs/adr/0034-frontend-architecture.md) | Server state in TanStack Query only; ids in URL; single-flight refresh; one realtime module | Accepted |
+| [35](docs/adr/0035-observability.md) | pino JSON logs, request id, Sentry, liveness (no DB) vs readiness | Accepted |
+| [36](docs/adr/0036-delivery-pipeline-and-database-operations.md) | CI → migrate → deploy hook; pooled vs direct URL; expand–contract; no preview deploys | Accepted |
+| [37](docs/adr/0037-vertical-slice-milestones.md) | Every milestone = BE + FE + tests, deployed from M2 | Accepted |
+| [38](docs/adr/0038-documentation-sources-of-truth.md) | One source of truth per topic; WORKFLOW-VI.md updated in the same PR | Accepted |
 
 ---
 
