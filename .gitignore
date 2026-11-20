@@ -148,7 +148,9 @@ vite.config.ts.timestamp-*
 # Turbo Repo
 .turbo
 
-# Local AI agent settings
-.claude/
+# Local AI agent settings — everything in .claude/ stays local EXCEPT the project skills,
+# which are shared and reviewed like code (see .claude/skills/README.md)
+.claude/*
+!.claude/skills/
 # Prisma generated client (regenerated on install)
 apps/api/src/generated/

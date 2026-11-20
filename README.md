@@ -11,7 +11,7 @@ A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScr
 | API | NestJS 11, TypeScript 5.9 (strict) |
 | Database | PostgreSQL 16, Prisma 7 |
 | Validation | Zod 4 via `nestjs-zod` (requests, responses, and environment variables) |
-| Cache / queues | Redis (planned: background jobs) |
+| Background jobs | BullMQ on Redis (planned) |
 | Real-time | Socket.io (planned) |
 | Frontend | React, Vite, TanStack Query, Zustand (planned) |
 | Testing | Jest, Supertest |
@@ -19,18 +19,19 @@ A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScr
 
 ## Roadmap
 
+Each milestone ships backend, frontend and tests together, deployed to production from Milestone 2 on.
+
 | Milestone | Scope | Status |
 |---|---|---|
-| 1. Foundation + Auth | Project setup, config, error handling, JWT auth, user profile | ✅ Done |
-| 2. Workspaces & Members | Workspaces, roles, invitations | Planned |
-| 3. Channels & Messaging | Real-time channels, messages, attachments | Planned |
-| 4. Kanban Board | Boards, columns, drag-and-drop tasks | Planned |
-| 5. Notifications & Jobs | Notifications, email, deadline reminders | Planned |
-| 6. Frontend | React SPA | Planned |
-| 7. Testing & Polish | Coverage, rate limiting, performance | Planned |
-| 8. Deploy & Docs | Render (API), Vercel (web), Neon, Upstash | Planned |
+| 1. Foundation + Auth API | Project setup, config, error handling, JWT auth, user profile | ✅ Done |
+| 2. Web foundation + walking skeleton | React app, auth UI, rate limiting, logging, CI/CD, first production deploy | Next |
+| 3. Workspaces & Members | Workspaces, roles, invitations by link | Planned |
+| 4. Channels & Messaging | Real-time channels, threads, attachments, presence | Planned |
+| 5. Kanban Board | Boards, columns, real-time drag-and-drop tasks | Planned |
+| 6. Notifications & Jobs | Notifications, email, deadline reminders, password reset | Planned |
+| 7. Hardening & Launch | Security audit, performance measurements, polish, demo data | Planned |
 
-The full plan, database schema and API design are in [WORKFLOW.md](WORKFLOW.md).
+The full plan (capacity budget, architecture, schema, API, milestones) is in [WORKFLOW.md](WORKFLOW.md). Design decisions and their trade-offs are recorded as [ADRs](docs/adr/README.md).
 
 ## What is built so far
 
