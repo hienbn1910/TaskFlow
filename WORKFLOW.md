@@ -100,6 +100,93 @@ This project demonstrates to employers that the developer:
 
 ## 3. System Architecture
 
+### Non-Functional Requirements & Capacity Budget
+
+> The numbers every design decision is checked against. Free-tier limits were verified on 2026-11-21.
+> Providers change them: re-check before the first deploy and at the start of every milestone.
+
+#### Load profile
+
+| Metric | Expected (demo use) | Design target (must still work) |
+|---|---|---|
+| Registered users | ≤ 50 | 500 |
+| Workspaces | ≤ 10 | 100 |
+| Members per workspace | 2–10 | 50 |
+| Concurrent WebSocket connections (one per open tab) | ≤ 10 | 100 |
+| Messages sent | ~100 / day | 5 / s peak, 5,000 / day |
+| REST requests | ~2,000 / day | 20 / s peak |
+| Tasks | ~200 total | 10,000 total |
+| Attachments | ~20 / month, ~1 MB average | 500 / month, ≤ 10 MB each |
+
+"Expected" sizes the free-tier budget below. "Design target" is what the code must handle without a redesign: indexes, pagination, fan-out and query count are reviewed against it.
+
+#### Service targets
+
+| Target | Value | Notes |
+|---|---|---|
+| API latency, typical endpoint (warm) | p95 < 200 ms server time, < 400 ms seen from a browser in South-East Asia | Measured in M7 from request logs (`responseTime`) |
+| Endpoints that hash a password (register, login, change password) | p95 < 1.5 s | bcrypt cost 10 on a 0.1-CPU instance (see risks) |
+| Real-time fan-out (message committed → shown on other clients) | p95 < 500 ms | |
+| Cold start when Render is asleep | ~1 min, accepted | Keep-alive ping avoids it (§8) |
+| Availability | Best effort, no SLA (free tier) | |
+| Durability | Committed data in PostgreSQL is never lost | Redis may lose everything at any time (ADR-0027) |
+| Tenant isolation | No cross-tenant read or write is possible | Hard requirement, proven by integration tests |
+
+#### Free-tier limits (verified 2026-11-21)
+
+| Provider | Limit that matters | Consequence for the design |
+|---|---|---|
+| **Render** web service | 512 MB RAM, 0.1 CPU. 750 instance-hours per workspace per month. Sleeps after 15 min without traffic, ~1 min to wake. **Outbound SMTP ports (25, 465, 587) blocked** | One always-on service uses 744 h (31-day month), so there is room for **exactly one**: API, WebSocket gateway and job workers run in one process (ADR-0018). Email goes through an HTTP API, never SMTP (ADR-0029) |
+| **Render** Key Value | 25 MB RAM, 50 connections, no command limit, **in-memory only: data lost on any restart**, one free instance per workspace | Chosen Redis for production (ADR-0027). Nothing may live only in Redis |
+| **Upstash** Redis | 500K commands / month (≈ 16K / day) | BullMQ with default settings polls ≈ 20K commands / day per idle queue. Over budget before any real traffic: rejected (ADR-0027) |
+| **Neon** PostgreSQL | 100 CU-hours / month per project, min 0.25 CU → **≤ 400 awake hours / month** (the month has 744). Scales to zero after 5 min idle. 0.5 GB storage (plan for the smaller figure; some sources say 1 GB). 5 GB transfer / month | The database must sleep about half of the time. Nothing periodic may touch it more often than hourly, and the keep-alive ping must not touch it (budget below) |
+| **Vercel** Hobby | 100 GB bandwidth / month. Non-commercial use only | Also carries the proxied API traffic (ADR-0020). A portfolio is non-commercial |
+| **Cloudinary** | 25 credits / month (1 credit ≈ 1 GB storage, or 1 GB bandwidth, or 1,000 transformations) | Size limits per file (ADR-0030) |
+| **Resend** (email) | 100 emails / day, 3,000 / month. Sending to arbitrary addresses needs a verified domain | Invitation rate limit per workspace (ADR-0031). Domain question open (ADR-0029) |
+
+#### Back-of-the-envelope estimates
+
+**Storage (Neon, 0.5 GB).** One message row ≈ 200 B of content + ~150 B of columns + ~250 B across its indexes ≈ **0.6 KB**.
+- Expected: 100 messages / day × 365 ≈ 36,500 rows / year ≈ **22 MB / year**. Fine for years.
+- Design target: 5,000 / day × 365 ≈ 1.8M rows ≈ **1.1 GB / year**: storage is the **first** limit to break, after about 5 months. Mitigations: message content capped at 4,000 characters (ADR-0024), notifications deleted after 90 days (ADR-0027), upgrade path = paid Neon plan. No code change needed.
+
+**Database compute (Neon, ≤ 400 awake hours / month).**
+- Hourly jobs: 24 wake-ups / day × ≥ 5 min awake ≈ 2 h / day ≈ **62 h / month ≈ 15.5 CU-h**.
+- Left for user traffic: ≈ 84 CU-h ≈ **336 awake hours / month** ≈ 11 h / day. Enough for demo use.
+- A job polling every minute (for example a Postgres-based queue, or a readiness check used as keep-alive) would keep the database awake 744 h ≈ 186 CU-h: the quota would run out around day 16. Hence the rules in ADR-0027: periodic work at most hourly, all periodic jobs at the same minute, `/health` never touches the database.
+
+**Redis commands.** Upstash budget ≈ 11 commands / minute. One idle BullMQ queue ≈ 14 / minute (blocking fetch every 5 s + stalled check every 30 s). This is why Render Key Value (no command limit) is used instead.
+
+**Latency budget, warm request, everything in one region (ADR-0019).**
+
+```
+Browser (Vietnam) → Vercel edge (Singapore)     ~ 30–50 ms round trip
+Vercel edge → Render (Singapore)                ~ 5 ms
+JwtAuthGuard: reload user                       ~ 2 ms   (Decision #15)
+WorkspaceGuard: membership                      ~ 2 ms
+Business query (1–2 queries)                    ~ 2–5 ms
+Application CPU on a 0.1-CPU instance           ~ 10–30 ms
+                                                ─────────
+                                                ≈ 60–100 ms   (target: < 400 ms)
+```
+
+If the database were in another region (e.g. `us-east-1` while the API runs in Singapore, ~220 ms round trip), the same three queries would take ~660 ms and break the target on their own. This is why region co-location is a decision (ADR-0019) and why no cache is needed yet.
+
+**Real-time fan-out.** Design target: 5 messages / s × 50 members = 250 socket writes / s on one Node process. Well within a single instance.
+
+#### Risks to verify in the production walking skeleton (M2)
+
+| Risk | How it is checked | Fallback |
+|---|---|---|
+| bcrypt cost 10 with `bcryptjs` (pure JS) on 0.1 CPU may exceed 1.5 s | Time `POST /auth/login` in production | Switch to native `bcrypt`. Same hash format: existing hashes stay valid (Decision #6 amended) |
+| Vercel external rewrite must forward `Set-Cookie`, `Origin` and `X-Forwarded-For` | E2E smoke test on the deployed app: login → reload → still logged in | Custom domain (`app.` + `api.` of one domain) |
+| Prisma `adapter-pg` through Neon's pooled (PgBouncer) endpoint | Run the integration suite against a Neon branch | Use the direct endpoint at runtime (single instance, few connections) |
+| Render and Neon both available in Singapore | Create the services | Pick the closest region **shared by both** |
+
+#### Explicitly out of scope
+
+Multi-region, high availability, zero-downtime guarantees, horizontal scaling (the path is documented in ADR-0018, not built), backups beyond the provider's restore window (take a manual `pg_dump` before risky migrations).
+
 ### High-Level Architecture
 
 ```
