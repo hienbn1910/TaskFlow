@@ -25,6 +25,8 @@
 
 4. **`apps/api/prisma/schema.prisma`** — Source of truth for the tables already built. Never contradict this file.
 
+5. **`GLOSSARY.md`** — The domain language: one name per concept (User, Member, Member role, Channel Member, Done column…). Use these names in code, API, UI and docs; never the words listed under `_Avoid_`.
+
 ---
 
 ## Development Flow (Summary)

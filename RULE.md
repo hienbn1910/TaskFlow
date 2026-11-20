@@ -178,8 +178,8 @@ async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: AuthUser) {
 // BAD — business logic in controller
 @Post()
 async create(@Body() dto: CreateWorkspaceDto, @CurrentUser() user: AuthUser) {
-  const existing = await this.prisma.workspace.findFirst({ where: { slug: dto.slug } });
-  if (existing) throw new ConflictException();
+  const owned = await this.prisma.workspace.count({ where: { ownerId: user.id } });
+  if (owned >= MAX_OWNED_WORKSPACES) throw new ForbiddenException();
   // ...
 }
 ```
@@ -357,7 +357,7 @@ await this.prisma.task.createMany({ data: items });
 describe('WorkspaceService', () => {
   describe('create', () => {
     it('should create workspace with valid data', async () => {});
-    it('should throw ConflictException when slug already exists', async () => {});
+    it('should throw BadRequestException when name is empty after trimming', async () => {});
     it('should set creator as OWNER role', async () => {});
   });
 });

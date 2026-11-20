@@ -54,7 +54,7 @@ This project demonstrates to employers that the developer:
 
 | In scope | Out of scope |
 |---|---|
-| Email + password accounts, email verification, password reset | OAuth / SSO (the guard allows adding it later, Decision #15) |
+| Email + password accounts, email verification, password reset | OAuth / SSO (the guard allows adding it later, Decision #15). Self-service account deletion (M7 stretch); blocking and deleting Users is an operator action in the database |
 | Workspaces, roles, invitations by link and email | Billing, plans, usage limits per customer |
 | Public and private channels, one-level threads, attachments, mentions, typing, presence | Direct messages, reactions, message search, voice / video |
 | Kanban boards with real-time drag and drop, assignment, due dates, reminders | Task comments, sub-tasks, custom fields |
@@ -476,9 +476,7 @@ INDEX: (userId, purpose)
 #### workspaces — M3
 ```
 id           UUID         PRIMARY KEY
-name         VARCHAR(100) NOT NULL
-slug         VARCHAR(50)  NOT NULL, lowercase letters, digits, hyphens
-                          UNIQUE WHERE deleted_at IS NULL
+name         VARCHAR(100) NOT NULL (not unique; no slug — URLs use the id, ADR-0034)
 description  VARCHAR(500) NULLABLE
 logoUrl      VARCHAR      NULLABLE (Cloudinary public URL)
 ownerId      UUID         FK → users.id, NOT NULL (exactly one owner, ADR-0032)
@@ -614,10 +612,13 @@ boardId      UUID        NOT NULL
 name         VARCHAR(50) NOT NULL
 position     (type decided in M5, ADR-0009; proposal DOUBLE PRECISION, gap 1000)
 color        VARCHAR(7)  NULLABLE (#rrggbb)
+isDoneColumn BOOLEAN     DEFAULT false (the Done column: tasks in it are Completed;
+                         cannot be deleted; see GLOSSARY.md)
 createdAt / updatedAt
 
 FK: (workspaceId, boardId) → boards(workspaceId, id)
 UNIQUE: (boardId, id)                                      — target for tasks
+UNIQUE: (boardId) WHERE is_done_column                     — at most one Done column per board
 INDEX: (boardId, position)
 ```
 
@@ -634,7 +635,8 @@ dueDate         TIMESTAMPTZ  NULLABLE
 position        (same type as board_columns.position)
 assigneeId      UUID         FK → users.id, NULLABLE (must be a workspace member: service rule)
 createdById     UUID         FK → users.id
-completedAt     TIMESTAMPTZ  NULLABLE (explicit "mark complete", independent of the column)
+completedAt     TIMESTAMPTZ  NULLABLE (set when the task enters the Done column, cleared
+                             when it leaves; never set directly)
 reminderSentAt  TIMESTAMPTZ  NULLABLE (ADR-0028)
 createdAt / updatedAt
 
@@ -816,7 +818,8 @@ DELETE /:columnId             Delete (only when empty)
 GET    /                      List; filters columnId, assigneeId, priority, dueFrom, dueTo (paginated)
 POST   /                      Create task
 GET    /:taskId               Details
-PATCH  /:taskId               Update title, description, priority, dueDate, completed
+PATCH  /:taskId               Update title, description, priority, dueDate
+                              (completion follows the Done column, see /move)
 DELETE /:taskId               Delete
 PATCH  /:taskId/move          Move { columnId, beforeTaskId?, afterTaskId? }; the server
                               computes the position from the neighbours (ADR-0009)
@@ -887,7 +890,7 @@ Full rules in ADR-0025. Payloads are `{ workspaceId, occurredAt, data }`, where 
 ### Feature 2: Workspaces, Members, Invitations (M3)
 
 **Create workspace**
-- Input: name, optional slug. Without a slug, generate one from the name; on a unique conflict retry with a random suffix (≤ 3 times, ADR-0032).
+- Input: name (1–100 characters, not unique), optional description. There is no slug: URLs use the workspace id (ADR-0034).
 - One transaction: workspace + OWNER member. After commit: `workspace.created` (M4 creates "general" from it).
 
 **WorkspaceGuard (every workspace route)**
@@ -911,7 +914,13 @@ Full rules in ADR-0025. Payloads are `{ workspaceId, occurredAt, data }`, where 
 | Leave | ❌ (transfer first) | ✅ | ✅ |
 | Delete any channel / board, delete others' messages | ✅ | ✅ | ❌ |
 
+**Ownership transfer:** the Owner picks another Member; in one transaction that Member becomes OWNER and the previous Owner becomes ADMIN (ADR-0032).
+
 **Invitations:** lifecycle in ADR-0022, accept rules in ADR-0032, flow in §3 "Critical Flows 3". Leaving or being removed unassigns the member's tasks and removes their channel memberships (cascade).
+
+**Blocked and deleted Users** are operator actions in the database, with no screen (see `GLOSSARY.md`). A deleted User is removed from every Workspace; their Messages stay and are shown under "Deleted user". The operator transfers ownership first if the User is an Owner.
+
+Vocabulary for this feature and the next ones: [`GLOSSARY.md`](GLOSSARY.md).
 
 ### Feature 3: Channels & Messaging (M4)
 
@@ -938,7 +947,7 @@ Full rules in ADR-0025. Payloads are `{ workspaceId, occurredAt, data }`, where 
 
 **Assignment:** the assignee must be a workspace member. Changing the assignee or the due date resets `reminderSentAt`. After commit: `task.assigned`.
 
-**Completion:** `completedAt` is an explicit flag ("mark complete"), independent of the column names chosen by users.
+**Completion follows the Done column:** each Board has exactly one Done column (`isDoneColumn`; on a new Board it is "Done"). A Task created in or moved into it gets `completedAt = now`; moved out, `completedAt` is cleared. The Done column can be renamed but not deleted; choosing a different column as the Done column is not supported yet. This keeps the board and the reminders consistent: a Task dragged to Done is never reminded about.
 
 **Reminders:** hourly scan, 23–24 h before the deadline, once per due date (ADR-0028).
 
@@ -1076,11 +1085,12 @@ Decisions: ADR-0001 … ADR-0017.
 
 **Branch `feature/workspaces`**
 ```
-3.1  Schema: workspaces, workspace_members (composite keys, ADR-0021; partial unique slug)
+3.1  Schema: workspaces, workspace_members (composite keys, ADR-0021; no slug)
 3.2  WorkspaceGuard: membership + workspace not deleted; attaches workspaceId and role
 3.3  Decorators: @CurrentWorkspace(), @WorkspaceRoles(...)
-3.4  CRUD: list mine, create (slug auto-generated, retry on conflict), get, update, soft delete
-3.5  Transfer ownership (ADR-0032); domain event workspace.created
+3.4  CRUD: list mine, create, get, update, soft delete
+3.5  Transfer ownership: new Owner → OWNER, previous Owner → ADMIN (ADR-0032);
+     domain event workspace.created
 3.6  Web: workspace list / switcher, create dialog, settings page, delete (owner)
 ```
 
@@ -1104,7 +1114,7 @@ Decisions: ADR-0001 … ADR-0017.
 
 **Tests (in addition to unit and endpoint tests):**
 - Isolation suite: a member of workspace A gets 404 on **every** workspace-B endpoint (read and write), never data (ADR-0021)
-- Concurrency: double accept, slug race (ADR-0032)
+- Concurrency: double accept, two transfers of ownership at once (ADR-0032)
 - Role matrix: OWNER / ADMIN / MEMBER × every member and invitation action
 
 **Completion criteria (on production):**
@@ -1190,7 +1200,8 @@ Decisions: ADR-0001 … ADR-0017.
 **Branch `feature/boards`**
 ```
 5.1  Schema: boards, board_columns (workspaceId)
-5.2  Board CRUD (soft delete ADMIN+), default columns (Todo, In Progress, Done)
+5.2  Board CRUD (soft delete ADMIN+), default columns (Todo, In Progress, Done);
+     "Done" is the board's Done column (isDoneColumn, cannot be deleted)
 5.3  Column CRUD (delete only when empty) and reorder
 5.4  Web: board list, board page with columns
 ```
@@ -1199,7 +1210,8 @@ Decisions: ADR-0001 … ADR-0017.
 ```
 5.5  Schema: tasks (workspaceId, boardId, composite FK to column, dueDate timestamptz,
      reminderSentAt) (ADR-0021, 0028)
-5.6  CRUD; move with positions and rebalancing in one locking transaction (ADR-0009)
+5.6  CRUD; move with positions and rebalancing in one locking transaction (ADR-0009);
+     entering / leaving the Done column sets / clears completedAt
 5.7  Assign / unassign (assignee must be a member) → domain event task.assigned
 5.8  Filters: assignee, priority, due range (offset pagination); changing dueDate or
      assignee resets reminderSentAt
@@ -1302,7 +1314,7 @@ Decisions: ADR-0001 … ADR-0017.
      ADR highlights, how to run locally, how to run tests
 ```
 
-**Stretch (only if time remains):** audit log of admin actions, orphan upload cleanup, PostgreSQL Row-Level Security (ADR-0021), Socket.io Redis adapter (ADR-0018 scale path).
+**Stretch (only if time remains):** self-service account deletion (password confirmation; refused while the User is an Owner), audit log of admin actions, orphan upload cleanup, PostgreSQL Row-Level Security (ADR-0021), Socket.io Redis adapter (ADR-0018 scale path).
 
 **Completion criteria:**
 - [ ] Every §3 target measured and written down (or the deviation explained in an ADR)
@@ -1499,6 +1511,7 @@ CLAUDE.md                        ← Entry point: rules for agents, current stat
 RULE.md                          ← Code rules and standards (backend §1–§10, frontend §11)
 WORKFLOW.md                      ← This file: plan, NFR, architecture, schema, API, milestones
 WORKFLOW-VI.md                   ← Vietnamese translation of this file + glossary
+GLOSSARY.md                      ← Domain language: one name per concept, used in code, API and UI
 docs/adr/                        ← Architecture Decision Records (one decision per file)
 docs/specs/ docs/plans/ docs/tasks/   ← Per-branch spec, plan, task list
 apps/api/prisma/schema.prisma    ← Source of truth for implemented tables
@@ -1516,3 +1529,4 @@ README.md                        ← Public project documentation (completed in 
 |---|---|
 | 2026-11-04 | Initial workflow document created |
 | 2026-11-21 | System design review: Non-Functional Requirements & Capacity Budget (§3); architecture, module map and critical flows (§3); schema with tenant keys, composite FKs, timestamptz, partial unique indexes (§4); API conventions and endpoints updated (§5); features updated (§6); milestones re-planned as vertical slices deployed from M2 (§7); deployment updated for verified free-tier limits (§8). Decisions recorded as ADR-0001 … ADR-0038 |
+| 2026-11-21 | Glossary session (`GLOSSARY.md`): workspaces have no slug; ownership transfer makes the previous Owner an Admin; each Board has one Done column that drives completion; blocking and deleting Users are operator actions, self-service deletion is an M7 stretch |

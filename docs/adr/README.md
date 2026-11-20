@@ -5,7 +5,7 @@ One file per decision: the context, what was decided, and what it costs. Read th
 ## Rules
 
 - **Numbering.** `NNNN-short-title.md`. ADR-0001 … ADR-0017 are the "Resolved Decisions #1–#17" from Milestone 1, with the same numbers, so code comments like `Decision #5` still point to the right record.
-- **Never rewrite history.** To change a decision, write a new ADR and set the old one's status to `Superseded by ADR-XXXX` or `Amended by ADR-XXXX`. Typos and broken links may be fixed in place.
+- **Never rewrite history.** An ADR becomes immutable **once it is merged into `main`**. From then on, to change a decision, write a new ADR and set the old one's status to `Superseded by ADR-XXXX` or `Amended by ADR-XXXX`. Typos and broken links may be fixed in place. Before the merge, the ADR is still a draft under review and is edited directly.
 - **Status values:** `Proposed`, `Accepted`, `Deferred to <milestone>`, `Amended by …`, `Superseded by …`.
 - **When to write one:** the decision is **hard to reverse**, **surprising without context** (a newcomer would ask "why this way?"), **and the result of a real trade-off** — all three. Or it resolves a conflict between project documents, which must be recorded so the documents can be corrected. Otherwise, skip the ADR.
 - **Short is fine.** Context and Decision are required. Alternatives and Consequences only when they add value.

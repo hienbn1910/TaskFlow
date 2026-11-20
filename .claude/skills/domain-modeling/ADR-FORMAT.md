@@ -54,6 +54,6 @@ These rules replace the upstream "Template" and "Optional sections", and extend 
 
 1. **Template.** Use the template in `docs/adr/README.md`: title `# ADR-NNNN: …`, then **Status** and **Date**, then **Context** and **Decision** (always). **Alternatives considered** and **Consequences** only when they add value — the upstream advice "an ADR can be short" applies.
 2. **Numbers 0001–0017 are fixed.** They are the former "Resolved Decisions #1–#17"; code comments cite them as `Decision #N`. New ADRs continue from the highest number in `docs/adr/`.
-3. **Never rewrite an accepted ADR.** To change a decision, write a new ADR and set the old one's status to `Superseded by ADR-XXXX` or `Amended by ADR-XXXX`. Typos and broken links may be fixed in place.
+3. **Never rewrite an ADR that is merged into `main`.** (Before the merge it is a draft and is edited directly.) To change a merged decision, write a new ADR and set the old one's status to `Superseded by ADR-XXXX` or `Amended by ADR-XXXX`. Typos and broken links may be fixed in place.
 4. **When to offer an ADR:** all three upstream conditions, **or** the decision resolves a conflict between project documents (CLAUDE.md, RULE.md, WORKFLOW.md), which must be recorded so the documents can be corrected.
 5. **After writing one:** add it to the index in `docs/adr/README.md` and to the summary table in `CLAUDE.md`, and correct any text it overrules in `WORKFLOW.md`, `WORKFLOW-VI.md` and `RULE.md` in the same branch (ADR-0038).

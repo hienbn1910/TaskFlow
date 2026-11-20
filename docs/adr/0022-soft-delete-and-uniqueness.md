@@ -4,7 +4,7 @@
 - **Date:** 2026-11-21
 
 ## Context
-- A soft-deleted row keeps its unique values. Today a user who deleted their account can never register again with the same email. The same would hold for workspace slugs and channel names.
+- A soft-deleted row keeps its unique values. Today a user who deleted their account can never register again with the same email. The same would hold for channel names. (Workspaces have no slug: their name need not be unique, and URLs use ids, ADR-0034.)
 - `invitations` had `UNIQUE (workspaceId, email)`: an address could never be invited again after an accepted, expired or cancelled invitation.
 - Cancelling an invitation had no status. The token was stored in plain text.
 
@@ -27,7 +27,6 @@
 
 ### Uniqueness among live rows only (partial unique indexes)
 - `users(email) WHERE deleted_at IS NULL` (emails are already stored lowercase by the schema)
-- `workspaces(slug) WHERE deleted_at IS NULL`
 - `channels(workspace_id, lower(name)) WHERE deleted_at IS NULL`
 - `invitations(workspace_id, email) WHERE status = 'PENDING'`
 

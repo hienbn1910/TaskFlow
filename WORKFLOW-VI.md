@@ -55,7 +55,7 @@ Dự án chứng minh với nhà tuyển dụng rằng lập trình viên:
 
 | Trong phạm vi | Ngoài phạm vi |
 |---|---|
-| Tài khoản email + mật khẩu, xác thực email, đặt lại mật khẩu | OAuth / SSO (guard cho phép thêm sau, Decision #15) |
+| Tài khoản email + mật khẩu, xác thực email, đặt lại mật khẩu | OAuth / SSO (guard cho phép thêm sau, Decision #15). Tự xoá tài khoản (mở rộng của M7); khoá và xoá User là thao tác của người vận hành trong database |
 | Workspace, vai trò, mời qua link và email | Thanh toán, gói dịch vụ, hạn mức theo khách hàng |
 | Kênh public và private, thread một cấp, file đính kèm, mention, đang gõ, trạng thái online | Tin nhắn riêng, reaction, tìm kiếm tin nhắn, gọi thoại / video |
 | Bảng Kanban kéo thả realtime, giao việc, hạn chót, nhắc hạn | Bình luận task, task con, trường tùy chỉnh |
@@ -477,9 +477,7 @@ INDEX: (userId, purpose)
 #### workspaces — M3
 ```
 id           UUID         PRIMARY KEY
-name         VARCHAR(100) NOT NULL
-slug         VARCHAR(50)  NOT NULL, lowercase letters, digits, hyphens
-                          UNIQUE WHERE deleted_at IS NULL
+name         VARCHAR(100) NOT NULL (not unique; no slug — URLs use the id, ADR-0034)
 description  VARCHAR(500) NULLABLE
 logoUrl      VARCHAR      NULLABLE (Cloudinary public URL)
 ownerId      UUID         FK → users.id, NOT NULL (exactly one owner, ADR-0032)
@@ -615,10 +613,13 @@ boardId      UUID        NOT NULL
 name         VARCHAR(50) NOT NULL
 position     (type decided in M5, ADR-0009; proposal DOUBLE PRECISION, gap 1000)
 color        VARCHAR(7)  NULLABLE (#rrggbb)
+isDoneColumn BOOLEAN     DEFAULT false (the Done column: tasks in it are Completed;
+                         cannot be deleted; see GLOSSARY.md)
 createdAt / updatedAt
 
 FK: (workspaceId, boardId) → boards(workspaceId, id)
 UNIQUE: (boardId, id)                                      — target for tasks
+UNIQUE: (boardId) WHERE is_done_column                     — at most one Done column per board
 INDEX: (boardId, position)
 ```
 
@@ -635,7 +636,8 @@ dueDate         TIMESTAMPTZ  NULLABLE
 position        (same type as board_columns.position)
 assigneeId      UUID         FK → users.id, NULLABLE (must be a workspace member: service rule)
 createdById     UUID         FK → users.id
-completedAt     TIMESTAMPTZ  NULLABLE (explicit "mark complete", independent of the column)
+completedAt     TIMESTAMPTZ  NULLABLE (set when the task enters the Done column, cleared
+                             when it leaves; never set directly)
 reminderSentAt  TIMESTAMPTZ  NULLABLE (ADR-0028)
 createdAt / updatedAt
 
@@ -819,7 +821,8 @@ DELETE /:columnId             Delete (only when empty)
 GET    /                      List; filters columnId, assigneeId, priority, dueFrom, dueTo (paginated)
 POST   /                      Create task
 GET    /:taskId               Details
-PATCH  /:taskId               Update title, description, priority, dueDate, completed
+PATCH  /:taskId               Update title, description, priority, dueDate
+                              (completion follows the Done column, see /move)
 DELETE /:taskId               Delete
 PATCH  /:taskId/move          Move { columnId, beforeTaskId?, afterTaskId? }; the server
                               computes the position from the neighbours (ADR-0009)
@@ -890,7 +893,7 @@ Quy tắc đầy đủ trong ADR-0025. Payload có dạng `{ workspaceId, occurr
 ### Tính năng 2: Workspace, Thành viên, Lời mời (M3)
 
 **Tạo workspace**
-- Đầu vào: name, slug tùy chọn. Không có slug thì sinh từ name; nếu trùng thì thử lại với hậu tố ngẫu nhiên (≤ 3 lần, ADR-0032).
+- Đầu vào: name (1–100 ký tự, không bắt buộc duy nhất), description tùy chọn. Không có slug: URL dùng id của workspace (ADR-0034).
 - Một transaction: workspace + thành viên OWNER. Sau commit: `workspace.created` (M4 dựa vào event này để tạo "general").
 
 **WorkspaceGuard (mọi route của workspace)**
@@ -914,7 +917,13 @@ Quy tắc đầy đủ trong ADR-0025. Payload có dạng `{ workspaceId, occurr
 | Rời workspace | ❌ (chuyển quyền trước) | ✅ | ✅ |
 | Xóa bất kỳ channel / board nào, xóa tin nhắn của người khác | ✅ | ✅ | ❌ |
 
+**Chuyển quyền sở hữu:** Owner chọn một Member khác; trong một transaction, Member đó trở thành OWNER và Owner cũ trở thành ADMIN (ADR-0032).
+
 **Lời mời:** vòng đời trong ADR-0022, quy tắc chấp nhận trong ADR-0032, luồng ở §3 "Các luồng quan trọng" số 3. Khi rời hoặc bị xóa khỏi workspace, các task được giao cho thành viên đó bị bỏ giao, và tư cách thành viên các channel bị xóa theo (cascade).
+
+**User bị khoá và User bị xoá** là thao tác của người vận hành trong database, không có giao diện (xem `GLOSSARY.md`). User bị xoá bị gỡ khỏi mọi Workspace; tin nhắn của họ vẫn còn, hiện dưới tên "Deleted user". Nếu User đó là Owner, người vận hành chuyển quyền sở hữu trước.
+
+Thuật ngữ cho tính năng này và các tính năng sau: [`GLOSSARY.md`](GLOSSARY.md).
 
 ### Tính năng 3: Channel & Nhắn tin (M4)
 
@@ -941,7 +950,7 @@ Quy tắc đầy đủ trong ADR-0025. Payload có dạng `{ workspaceId, occurr
 
 **Giao việc:** người được giao phải là thành viên workspace. Đổi người được giao hoặc hạn chót sẽ đặt lại `reminderSentAt`. Sau commit: `task.assigned`.
 
-**Hoàn thành:** `completedAt` là một cờ rõ ràng ("đánh dấu hoàn thành"), không phụ thuộc tên cột do người dùng đặt.
+**Hoàn thành theo Done column:** mỗi Board có đúng một Done column (`isDoneColumn`; trên Board mới là cột "Done"). Task được tạo trong hoặc kéo vào cột đó thì nhận `completedAt = now`; kéo ra thì `completedAt` bị xoá. Done column đổi tên được nhưng không xoá được; chưa hỗ trợ chọn cột khác làm Done column. Nhờ vậy bảng và việc nhắc hạn luôn khớp nhau: Task đã kéo sang Done không bao giờ bị nhắc.
 
 **Nhắc hạn:** quét mỗi giờ, nhắc trước hạn 23–24 giờ, mỗi hạn chót một lần (ADR-0028).
 
@@ -1079,11 +1088,12 @@ Quyết định: ADR-0001 … ADR-0017.
 
 **Branch `feature/workspaces`**
 ```
-3.1  Schema: workspaces, workspace_members (composite keys, ADR-0021; partial unique slug)
+3.1  Schema: workspaces, workspace_members (composite keys, ADR-0021; no slug)
 3.2  WorkspaceGuard: membership + workspace not deleted; attaches workspaceId and role
 3.3  Decorators: @CurrentWorkspace(), @WorkspaceRoles(...)
-3.4  CRUD: list mine, create (slug auto-generated, retry on conflict), get, update, soft delete
-3.5  Transfer ownership (ADR-0032); domain event workspace.created
+3.4  CRUD: list mine, create, get, update, soft delete
+3.5  Transfer ownership: new Owner → OWNER, previous Owner → ADMIN (ADR-0032);
+     domain event workspace.created
 3.6  Web: workspace list / switcher, create dialog, settings page, delete (owner)
 ```
 
@@ -1107,7 +1117,7 @@ Quyết định: ADR-0001 … ADR-0017.
 
 **Test (ngoài unit test và test endpoint):**
 - Bộ test cô lập: thành viên workspace A nhận 404 trên **mọi** endpoint của workspace B (đọc và ghi), không bao giờ nhận được dữ liệu (ADR-0021)
-- Đồng thời: chấp nhận lời mời hai lần, tranh chấp slug (ADR-0032)
+- Đồng thời: chấp nhận lời mời hai lần, hai lần chuyển quyền sở hữu cùng lúc (ADR-0032)
 - Ma trận vai trò: OWNER / ADMIN / MEMBER × mọi hành động trên thành viên và lời mời
 
 **Tiêu chí hoàn thành (trên production):**
@@ -1193,7 +1203,8 @@ Quyết định: ADR-0001 … ADR-0017.
 **Branch `feature/boards`**
 ```
 5.1  Schema: boards, board_columns (workspaceId)
-5.2  Board CRUD (soft delete ADMIN+), default columns (Todo, In Progress, Done)
+5.2  Board CRUD (soft delete ADMIN+), default columns (Todo, In Progress, Done);
+     "Done" is the board's Done column (isDoneColumn, cannot be deleted)
 5.3  Column CRUD (delete only when empty) and reorder
 5.4  Web: board list, board page with columns
 ```
@@ -1202,7 +1213,8 @@ Quyết định: ADR-0001 … ADR-0017.
 ```
 5.5  Schema: tasks (workspaceId, boardId, composite FK to column, dueDate timestamptz,
      reminderSentAt) (ADR-0021, 0028)
-5.6  CRUD; move with positions and rebalancing in one locking transaction (ADR-0009)
+5.6  CRUD; move with positions and rebalancing in one locking transaction (ADR-0009);
+     entering / leaving the Done column sets / clears completedAt
 5.7  Assign / unassign (assignee must be a member) → domain event task.assigned
 5.8  Filters: assignee, priority, due range (offset pagination); changing dueDate or
      assignee resets reminderSentAt
@@ -1305,7 +1317,7 @@ Quyết định: ADR-0001 … ADR-0017.
      ADR highlights, how to run locally, how to run tests
 ```
 
-**Mở rộng (chỉ khi còn thời gian):** audit log cho hành động của admin, dọn file upload mồ côi, PostgreSQL Row-Level Security (ADR-0021), Socket.io Redis adapter (con đường mở rộng trong ADR-0018).
+**Mở rộng (chỉ khi còn thời gian):** tự xoá tài khoản (xác nhận bằng mật khẩu; từ chối nếu User đang là Owner), audit log cho hành động của admin, dọn file upload mồ côi, PostgreSQL Row-Level Security (ADR-0021), Socket.io Redis adapter (con đường mở rộng trong ADR-0018).
 
 **Tiêu chí hoàn thành:**
 - [ ] Mọi mục tiêu ở §3 đã được đo và ghi lại (hoặc giải thích chỗ lệch trong một ADR)
@@ -1504,6 +1516,7 @@ CLAUDE.md                        ← Điểm bắt đầu: quy tắc cho agent, 
 RULE.md                          ← Quy tắc và tiêu chuẩn code (backend §1–§10, frontend §11)
 WORKFLOW.md                      ← Kế hoạch: NFR, kiến trúc, schema, API, các giai đoạn
 WORKFLOW-VI.md                   ← File này: bản dịch tiếng Việt + giải thích thuật ngữ
+GLOSSARY.md                      ← Ngôn ngữ nghiệp vụ: mỗi khái niệm một tên, dùng chung cho code, API, UI
 docs/adr/                        ← Architecture Decision Records (mỗi file một quyết định)
 docs/specs/ docs/plans/ docs/tasks/   ← Spec, plan, danh sách task của từng branch
 apps/api/prisma/schema.prisma    ← Nguồn sự thật cho các bảng đã xây
@@ -1771,3 +1784,4 @@ Một sự kiện được gửi đến nhiều người nhận. Một tin nhắ
 | 04-11-2026 | Tạo tài liệu workflow ban đầu |
 | 04-11-2026 | Dịch sang tiếng Việt và thêm giải thích thuật ngữ |
 | 21-11-2026 | Rà soát thiết kế hệ thống: thêm Yêu cầu phi chức năng & Ngân sách tài nguyên (§3); kiến trúc, bản đồ module và các luồng quan trọng (§3); schema có khóa tenant, composite FK, timestamptz, partial unique index (§4); cập nhật quy ước API và endpoint (§5); cập nhật tính năng (§6); lập lại các giai đoạn theo lát dọc, deploy từ M2 (§7); cập nhật triển khai theo giới hạn free tier đã kiểm chứng (§8). Các quyết định được ghi thành ADR-0001 … ADR-0038. Bổ sung thuật ngữ mới (§11) |
+| 21-11-2026 | Phiên chốt thuật ngữ (`GLOSSARY.md`): workspace không có slug; chuyển quyền sở hữu thì Owner cũ thành Admin; mỗi Board có một Done column quyết định việc hoàn thành; khoá và xoá User là thao tác của người vận hành, tự xoá tài khoản là mở rộng của M7 |
