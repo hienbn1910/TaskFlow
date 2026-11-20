@@ -108,7 +108,7 @@ U1, U2 and U3 are independent of each other; U4 needs U1; U6 needs U2 and U5; U7
 | New file | `test/users.e2e-spec.ts` (reuses `test/utils/auth-helpers.ts`, `reset-db.ts`; adds `patchProfile` / `changePassword` helpers if useful) |
 | Coverage | Every acceptance criterion in spec §4, including: new name visible through `GET /auth/me`; extra fields don't change email / status / password in the DB; after a password change, **two devices' refresh cookies both fail** and the DB has 0 sessions; old password → 401 at login, new → 200; wrong current password → 400, password hash unchanged, sessions still there; the response clears the refresh cookie; no token → 401 on both endpoints |
 
-### - [ ] U9. Full run, security/perf check, docs, PR, knowledge summary
+### - [x] U9. Full run, security/perf check, docs, PR, knowledge summary
 
 | | |
 |---|---|
