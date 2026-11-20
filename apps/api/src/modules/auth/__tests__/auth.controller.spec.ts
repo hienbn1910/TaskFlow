@@ -1,10 +1,11 @@
 import { Test } from '@nestjs/testing';
 import type { Request, Response } from 'express';
 
+import { RefreshCookieService } from '@common/cookies/refresh-cookie.service';
+
 import { AuthController } from '../auth.controller';
 import { AuthService } from '../auth.service';
 import type { AuthSession } from '../entities/auth-session.entity';
-import { RefreshCookieService } from '../refresh-cookie.service';
 
 const USER = {
   id: '3f8b2c1e-5d4a-4b6c-9e7f-1a2b3c4d5e6f',

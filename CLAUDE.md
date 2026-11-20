@@ -163,12 +163,14 @@ Tasks:
 - [x] Swagger at /api/docs + health endpoint
 - [x] Auth module (register, login, refresh, logout, me)
 - [x] JWT global guard (custom, no Passport — Decision #15)
-- [ ] Users module (profile, password)
-- [ ] Unit tests + integration tests for auth and users (auth done; users pending)
+- [x] Users module (profile, password)
+- [x] Unit tests + integration tests for auth and users
 
 Completion criteria: User can register, login, receive JWT tokens, refresh them, and logout. All endpoints return standardized response format.
 
 Branch plan: `chore/project-docs` → `chore/project-foundation` → `feature/auth` → `feature/user-profile`.
+
+Status: all tasks done once `feature/user-profile` is merged. Next: Milestone 2 (Workspaces & Members).
 
 ---
 
@@ -194,6 +196,7 @@ Conflicts found between the project documents, and how they are resolved. These 
 | 14 | Jest + Prisma 7 | Jest uses `tsconfig.spec.json` (`module: commonjs`) because the Prisma 7 client uses dynamic `import()`. Type checking of tests is done by `pnpm typecheck`, not by ts-jest |
 | 15 | WORKFLOW.md §2 lists Passport.js | No Passport. `JwtAuthGuard` (`common/guards`) is written with `@nestjs/jwt`: global `APP_GUARD`, `@Public()` to opt out, HS256 pinned, payload validated with Zod, user reloaded on every request so a blocked account loses access at once. Passport's `validate(payload: any)` conflicts with the no-`any` rule, and only JWT is needed. OAuth login, if added later, issues our own JWT pair and does not change the guard |
 | 16 | WORKFLOW.md §5 lists `forgot-password` / `reset-password` in the Auth module | Deferred to Milestone 5: they need email sending through the queue. Rate limiting on login/register is also deferred to a hardening branch (proposal: `@nestjs/throttler`) |
+| 17 | Users needs password rules, `canSignIn`, the refresh cookie and session revocation from auth, but `AuthModule` already imports `UsersModule` (cycle, RULE.md §1) | Module boundaries: field schemas in `common/types/user-fields.schema.ts`; refresh cookie in `common/cookies/` (`CookieModule`, reads `jwtConfig`, not `TokenService`); `canSignIn` in `modules/users/user.rules.ts`; sessions revoked by a Prisma nested write in `UsersRepository` (`refreshTokens: { deleteMany: {} }`, one atomic statement). Dependencies point one way: auth → users. No `forwardRef`. Wrong current password → 400, not 401. Access tokens issued before a password change stay valid ≤ 15 min (proposal: `passwordChangedAt`, hardening branch). See `docs/plans/user-profile.md` |
 
 ---
 

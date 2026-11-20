@@ -12,9 +12,17 @@ export interface UserEntity {
   readonly createdAt: Date;
 }
 
-/** UserEntity + bcrypt hash. Returned ONLY by UsersRepository.findByEmailWithPassword. */
+/** UserEntity + bcrypt hash. Returned ONLY by the two credential queries of UsersRepository. */
 export interface UserCredentials extends UserEntity {
   readonly password: string;
+}
+
+/**
+ * Fields a user may change on their own profile. A closed list: the repository never
+ * receives the request body, so email, isActive or password cannot be set this way.
+ */
+export interface UpdateProfileData {
+  readonly fullName?: string;
 }
 
 /** Data needed to insert a user. `password` must already be a bcrypt hash. */

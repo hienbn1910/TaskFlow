@@ -6,6 +6,7 @@ import { sha256Hex } from '@common/utils/hash.util';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from '@common/utils/password.util';
 import type { UserEntity } from '@modules/users/entities/user.entity';
 import { toUserResponse } from '@modules/users/mappers/user.mapper';
+import { canSignIn } from '@modules/users/user.rules';
 import { UsersRepository } from '@modules/users/users.repository';
 
 import type { LoginDto } from './dto/login.dto';
@@ -14,11 +15,6 @@ import type { AuthSession } from './entities/auth-session.entity';
 import type { NewRefreshToken } from './entities/refresh-token.entity';
 import { RefreshTokenRepository } from './refresh-token.repository';
 import { TokenService } from './token.service';
-
-/** A user may sign in (or keep using a token) only if active and not soft-deleted. */
-export function canSignIn(user: UserEntity): boolean {
-  return user.isActive && user.deletedAt === null;
-}
 
 /** A signed token pair + the DB row that will represent it. Nothing is stored yet. */
 interface SignedSession {

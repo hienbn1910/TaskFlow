@@ -1,11 +1,11 @@
 import { createZodDto } from 'nestjs-zod';
 import { z } from 'zod';
 
-import { emailSchema, loginPasswordSchema } from './auth-fields.schema';
+import { emailSchema, passwordInputSchema } from '@common/types/user-fields.schema';
 
 export const loginSchema = z.object({
   email: emailSchema,
-  password: loginPasswordSchema,
+  password: passwordInputSchema,
 });
 
 export class LoginDto extends createZodDto(loginSchema) {}

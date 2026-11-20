@@ -1,14 +1,24 @@
 import { z } from 'zod';
 
 import { MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH } from '@common/constants/auth.constant';
+import { sanitizedString } from '@common/utils/sanitize.util';
+
+/**
+ * Field rules for a user, shared by the auth module (register, login) and the users module
+ * (profile, password). Kept in common/types so neither module imports the other (RULE.md §1).
+ */
 
 const MAX_EMAIL_LENGTH = 254; // RFC 5321 limit for a full address
+const MAX_FULL_NAME_LENGTH = 100; // matches users.full_name VARCHAR(100)
 
 /**
  * Trim + lowercase BEFORE validating, so " User@Example.COM " and "user@example.com"
  * are the same account (spec §2.1). Every lookup and insert receives the normalized value.
  */
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(MAX_EMAIL_LENGTH));
+
+/** HTML stripped + trimmed BEFORE the length check (RULE.md §5). */
+export const fullNameSchema = sanitizedString(z.string().min(1).max(MAX_FULL_NAME_LENGTH));
 
 /** bcrypt ignores bytes after the 72nd. Counted in UTF-8 BYTES: "ằ" is 1 character but 3 bytes. */
 const fitsBcryptLimit = (value: string): boolean =>
@@ -17,7 +27,8 @@ const fitsBcryptLimit = (value: string): boolean =>
 const PASSWORD_TOO_LONG = `Must be at most ${String(MAX_PASSWORD_BYTES)} bytes`;
 
 /**
- * Register: full strength policy. Never trimmed: spaces are valid password characters.
+ * A password being CHOSEN (register, change password): full strength policy.
+ * Never trimmed: spaces are valid password characters.
  * \p{Lu} (any Unicode uppercase letter) so "Ằ" counts as uppercase, not only A–Z.
  */
 export const newPasswordSchema = z
@@ -28,10 +39,11 @@ export const newPasswordSchema = z
   .refine(fitsBcryptLimit, PASSWORD_TOO_LONG);
 
 /**
- * Login: no strength rule. Accounts are checked against bcrypt, not the policy, and a
- * policy error at login would reveal the rules without telling whether the account exists.
+ * A password being CHECKED against the stored hash (login, current password): no strength
+ * rule. The hash decides, not the policy. At login, a policy error would also reveal the
+ * rules without telling whether the account exists.
  */
-export const loginPasswordSchema = z
+export const passwordInputSchema = z
   .string()
   .min(1, 'Password is required')
   .refine(fitsBcryptLimit, PASSWORD_TOO_LONG);

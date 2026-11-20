@@ -9,8 +9,8 @@ import type { Request } from 'express';
 
 import { AUTH_ERROR } from '@common/constants/auth.constant';
 import { IS_PUBLIC_KEY } from '@common/decorators/public.decorator';
-import { canSignIn } from '@modules/auth/auth.service';
 import { TokenService } from '@modules/auth/token.service';
+import { canSignIn } from '@modules/users/user.rules';
 import { UsersRepository } from '@modules/users/users.repository';
 
 // Exactly "Bearer <token>": one space, no extra parts. The scheme is case-insensitive (RFC 7235).

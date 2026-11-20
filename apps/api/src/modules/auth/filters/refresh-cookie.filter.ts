@@ -1,9 +1,8 @@
 import { ArgumentsHost, Catch, Injectable } from '@nestjs/common';
 import type { Response } from 'express';
 
+import { RefreshCookieService } from '@common/cookies/refresh-cookie.service';
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
-
-import { RefreshCookieService } from '../refresh-cookie.service';
 
 /**
  * Used only on POST /auth/refresh. Any error there means the refresh cookie is useless

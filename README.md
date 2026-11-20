@@ -2,7 +2,7 @@
 
 A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScript. Teams create isolated workspaces, talk in real-time messaging channels, manage tasks on Kanban boards, and share files, with role-based access control and WebSocket-powered live updates.
 
-> **Status:** early development. The backend foundation and authentication are done; the user profile is next. See [Roadmap](#roadmap) for what works today and what is planned.
+> **Status:** early development. Milestone 1 is done: backend foundation, authentication and user profile. Workspaces are next. See [Roadmap](#roadmap) for what works today and what is planned.
 
 ## Tech stack
 
@@ -21,7 +21,7 @@ A multi-tenant SaaS collaboration platform built with NestJS, React, and TypeScr
 
 | Milestone | Scope | Status |
 |---|---|---|
-| 1. Foundation + Auth | Project setup, config, error handling, JWT auth, user profile | 🚧 In progress: foundation and auth done, user profile next |
+| 1. Foundation + Auth | Project setup, config, error handling, JWT auth, user profile | ✅ Done |
 | 2. Workspaces & Members | Workspaces, roles, invitations | Planned |
 | 3. Channels & Messaging | Real-time channels, messages, attachments | Planned |
 | 4. Kanban Board | Boards, columns, drag-and-drop tasks | Planned |
@@ -40,6 +40,8 @@ The full plan, database schema and API design are in [WORKFLOW.md](WORKFLOW.md).
 - **Response whitelisting:** each endpoint declares a Zod response schema, and fields outside it (such as `password`) are stripped before the response is sent.
 - **Security headers and CORS:** `helmet`, and CORS limited to the configured frontend origin.
 - **Health check and API docs:** `GET /api/v1/health` and Swagger UI at `/api/docs`.
+- **Authentication:** register, login, refresh, logout and `GET /auth/me`. Short-lived access JWT (15 min) plus a refresh JWT kept only in an httpOnly cookie, rotated on every use; reusing an old refresh token revokes all of the user's sessions. Passwords are hashed with bcrypt.
+- **User profile:** `PATCH /users/profile` (name) and `PATCH /users/password`. Changing the password requires the current one and revokes every session in the same database write.
 
 ### Response format
 

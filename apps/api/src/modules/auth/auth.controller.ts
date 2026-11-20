@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/sw
 import type { Request, Response } from 'express';
 import { ZodResponse } from 'nestjs-zod';
 
+import { RefreshCookieService } from '@common/cookies/refresh-cookie.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { Public } from '@common/decorators/public.decorator';
 import type { AuthUser } from '@common/types/auth-user.type';
@@ -14,7 +15,6 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import type { AuthSession } from './entities/auth-session.entity';
 import { RefreshCookieFilter } from './filters/refresh-cookie.filter';
-import { RefreshCookieService } from './refresh-cookie.service';
 
 /**
  * HTTP layer only (RULE.md §3): read input, call AuthService, move the refresh token

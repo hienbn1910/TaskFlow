@@ -126,7 +126,7 @@ describe('TokenService', () => {
     });
   });
 
-  describe('refresh expiry helpers', () => {
+  describe('refreshExpiresAt', () => {
     it('should return expiresAt 7 days from now', () => {
       const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
       const before = Date.now();
@@ -135,10 +135,6 @@ describe('TokenService', () => {
 
       expect(expiresAt).toBeGreaterThanOrEqual(before + sevenDaysMs);
       expect(expiresAt).toBeLessThanOrEqual(Date.now() + sevenDaysMs);
-    });
-
-    it('should return the cookie max age in ms', () => {
-      expect(service.refreshMaxAgeMs()).toBe(7 * 24 * 60 * 60 * 1000);
     });
   });
 });
