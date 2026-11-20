@@ -16,7 +16,8 @@ Skills marked "vendored" are copied from **[mattpocock/skills](https://github.co
 |---|---|---|---|---|---|
 | `grilling` | `skills/productivity/grilling/` | model | Step 1 Spec, open ADR questions | Vietnamese trigger phrases; "Adaptations": Vietnamese rounds, read ADRs first and never re-ask settled decisions, ≤ 5 questions per round, recommendations cite NFR/ADR, outcome written to `docs/specs/` or a proposed ADR | Vendored |
 | `grill-me` | `skills/productivity/grill-me/` | user (`/grill-me`) | Same, started by the developer | None (calls `grilling`) | Vendored |
-| `domain-modeling`, `grill-with-docs` | `skills/engineering/` | model / user | Step 1–2, glossary and ADRs | — | Planned (task 3) |
+| `domain-modeling` | `skills/engineering/domain-modeling/` (+ `ADR-FORMAT.md`, `GLOSSARY-FORMAT.md`) | model | Steps 1–2, `GLOSSARY.md` and ADRs | "Adaptations": one context; domain glossary (EN) ≠ technical glossary (`WORKFLOW-VI.md` §11); cross-check schema / WORKFLOW / ADRs; renames become separate tasks. ADR template, numbering and supersede rules from `docs/adr/README.md`; extra ADR trigger "resolves a document conflict". Glossary: English, optional `_VI_` line, grouped by feature area | Vendored |
+| `grill-with-docs` | `skills/engineering/grill-with-docs/` | user (`/grill-with-docs`) | Step 1 when the domain language changes | None (calls `grilling` + `domain-modeling`) | Vendored |
 | `tdd` | `skills/engineering/tdd/` | model | Steps 4–7 | — | Planned (task 5) |
 | `diagnosing-bugs` | `skills/engineering/diagnosing-bugs/` | model | Bug fixes | — | Planned (task 7) |
 | `review-against-spec` | `skills/engineering/code-review/` | model | Step 8 | — | Planned (task 8) |

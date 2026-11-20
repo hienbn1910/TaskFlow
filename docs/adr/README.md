@@ -7,7 +7,8 @@ One file per decision: the context, what was decided, and what it costs. Read th
 - **Numbering.** `NNNN-short-title.md`. ADR-0001 … ADR-0017 are the "Resolved Decisions #1–#17" from Milestone 1, with the same numbers, so code comments like `Decision #5` still point to the right record.
 - **Never rewrite history.** To change a decision, write a new ADR and set the old one's status to `Superseded by ADR-XXXX` or `Amended by ADR-XXXX`. Typos and broken links may be fixed in place.
 - **Status values:** `Proposed`, `Accepted`, `Deferred to <milestone>`, `Amended by …`, `Superseded by …`.
-- **When to write one:** a choice between real alternatives that a newcomer would question, that is costly to reverse, or that resolves a conflict between project documents.
+- **When to write one:** the decision is **hard to reverse**, **surprising without context** (a newcomer would ask "why this way?"), **and the result of a real trade-off** — all three. Or it resolves a conflict between project documents, which must be recorded so the documents can be corrected. Otherwise, skip the ADR.
+- **Short is fine.** Context and Decision are required. Alternatives and Consequences only when they add value.
 - **After writing one:** add it to the index below and to the summary table in `CLAUDE.md`.
 
 ## Template
@@ -24,12 +25,14 @@ What forces the decision. Numbers if any (WORKFLOW.md §3 NFR).
 ## Decision
 What we do. Concrete enough to check in a code review.
 
-## Alternatives considered
+## Alternatives considered          (optional)
 | Option | Rejected because |
 
-## Consequences
+## Consequences                     (optional)
 What becomes easier, what becomes harder, what must be revisited and when.
 ```
+
+The agent skill `domain-modeling` (`.claude/skills/domain-modeling/`) follows these rules when it proposes or writes an ADR.
 
 ## Index
 
