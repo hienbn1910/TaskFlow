@@ -14,7 +14,8 @@ Skills marked "vendored" are copied from **[mattpocock/skills](https://github.co
 
 | Skill | Upstream path | Invoked by | Used in (RULE.md §0) | Changes from upstream | Status |
 |---|---|---|---|---|---|
-| `grilling`, `grill-me` | `skills/productivity/` | model / user | Step 1 Spec, open ADR questions | — | Planned (task 2) |
+| `grilling` | `skills/productivity/grilling/` | model | Step 1 Spec, open ADR questions | Vietnamese trigger phrases; "Adaptations": Vietnamese rounds, read ADRs first and never re-ask settled decisions, ≤ 5 questions per round, recommendations cite NFR/ADR, outcome written to `docs/specs/` or a proposed ADR | Vendored |
+| `grill-me` | `skills/productivity/grill-me/` | user (`/grill-me`) | Same, started by the developer | None (calls `grilling`) | Vendored |
 | `domain-modeling`, `grill-with-docs` | `skills/engineering/` | model / user | Step 1–2, glossary and ADRs | — | Planned (task 3) |
 | `tdd` | `skills/engineering/tdd/` | model | Steps 4–7 | — | Planned (task 5) |
 | `diagnosing-bugs` | `skills/engineering/diagnosing-bugs/` | model | Bug fixes | — | Planned (task 7) |
