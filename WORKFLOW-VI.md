@@ -1033,6 +1033,7 @@ Quyết định: ADR-0001 … ADR-0017.
 2.7  GET /health/ready (database + Redis); /health stays dependency-free (ADR-0035)
 2.8  openapi:export script; apps/api/openapi.json committed (ADR-0033)
 2.9  Tests for each item (429, Origin 403, requestId, timestamptz round trip)
+2.9b Wording: "account" → "User" in comments and Swagger descriptions (GLOSSARY.md)
 ```
 
 **Branch `feature/web-foundation`**
