@@ -176,27 +176,27 @@ Status: all tasks done once `feature/user-profile` is merged. Next: Milestone 2 
 
 ## Resolved Decisions
 
-Conflicts found between the project documents, and how they are resolved. These override the conflicting text in the other files.
+Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision, alternatives, consequences. ADRs override conflicting text in WORKFLOW.md and RULE.md. `Decision #N` in code comments = `ADR-000N`. Read the ADRs listed for a feature before building it.
 
-| # | Conflict | Decision |
+| # | Decision (one line) | Status |
 |---|---|---|
-| 1 | Error format: RULE.md §6 has no `success` field, WORKFLOW.md §5 has `success: false` | Follow WORKFLOW.md — error responses include `success: false` |
-| 2 | Prisma location: `apps/api/prisma/` vs `src/prisma/` | `apps/api/prisma/` holds schema, migrations, seed. `src/prisma/` holds only `PrismaService` / `PrismaModule` |
-| 3 | WORKFLOW.md docker-compose builds `./backend` | Compose runs infrastructure only: `postgres` (dev, 5432), `postgres-test` (5433, tmpfs), `redis`. API runs with `pnpm dev` |
-| 4 | `users` has no `deletedAt`, but RULE.md §5 requires soft delete for users | Add `deletedAt` to `users` |
-| 5 | Refresh token storage | Refresh JWT lives only in an httpOnly cookie (never in the body). DB stores `sha256(token)`; reuse of a rotated token revokes all of the user's sessions |
-| 6 | Password hashing library | `bcryptjs` (same bcrypt algorithm, no native build), salt rounds 10 |
-| 7 | Validation tooling | Zod via `nestjs-zod` (`createZodDto`, Swagger generation) |
-| 8 | Deferred: WebSocket event names (`message:new` vs `new-message`) | Decide at Milestone 3. Proposal: WORKFLOW.md names |
-| 9 | Deferred: Kanban `position` type (INTEGER vs gap-based) | Decide at Milestone 4. Proposal: Float for gap-based positioning |
-| 10 | Deferred: Bull vs BullMQ | Decide at Milestone 5. Proposal: BullMQ (Bull is maintenance-only) |
-| 11 | Package versions | NestJS 11, TypeScript 5.9, Prisma 7.10, Zod 4. Not NestJS 12 / TS 7 / Prisma 8: `nestjs-zod` supports Nest ≤11, `ts-jest` and `typescript-eslint` don't support TS 7 yet, Prisma 8 is still RC. Re-evaluate when they do. `@nestjs/jwt` stays on 11.x: 12.x is ESM-only and Jest (CommonJS, Decision #14) cannot load it |
-| 12 | Prisma 7 specifics | Config file is `apps/api/prisma7.config.ts` (Prisma 7.10 default name). Client is generated to `src/generated/prisma` (gitignored, regenerated on `postinstall`) and imported via `@prisma-client/client`. Connects through the `@prisma/adapter-pg` driver adapter |
-| 13 | Response shaping | Use `@ZodResponse({ type: XxxResponseDto })` on every endpoint. The global `ZodSerializerInterceptor` parses the return value with that schema and strips unknown fields — a second safety net against leaking raw Prisma fields (e.g. `password`) |
-| 14 | Jest + Prisma 7 | Jest uses `tsconfig.spec.json` (`module: commonjs`) because the Prisma 7 client uses dynamic `import()`. Type checking of tests is done by `pnpm typecheck`, not by ts-jest |
-| 15 | WORKFLOW.md §2 lists Passport.js | No Passport. `JwtAuthGuard` (`common/guards`) is written with `@nestjs/jwt`: global `APP_GUARD`, `@Public()` to opt out, HS256 pinned, payload validated with Zod, user reloaded on every request so a blocked account loses access at once. Passport's `validate(payload: any)` conflicts with the no-`any` rule, and only JWT is needed. OAuth login, if added later, issues our own JWT pair and does not change the guard |
-| 16 | WORKFLOW.md §5 lists `forgot-password` / `reset-password` in the Auth module | Deferred to Milestone 5: they need email sending through the queue. Rate limiting on login/register is also deferred to a hardening branch (proposal: `@nestjs/throttler`) |
-| 17 | Users needs password rules, `canSignIn`, the refresh cookie and session revocation from auth, but `AuthModule` already imports `UsersModule` (cycle, RULE.md §1) | Module boundaries: field schemas in `common/types/user-fields.schema.ts`; refresh cookie in `common/cookies/` (`CookieModule`, reads `jwtConfig`, not `TokenService`); `canSignIn` in `modules/users/user.rules.ts`; sessions revoked by a Prisma nested write in `UsersRepository` (`refreshTokens: { deleteMany: {} }`, one atomic statement). Dependencies point one way: auth → users. No `forwardRef`. Wrong current password → 400, not 401. Access tokens issued before a password change stay valid ≤ 15 min (proposal: `passwordChangedAt`, hardening branch). See `docs/plans/user-profile.md` |
+| [1](docs/adr/0001-error-response-format.md) | Error responses include `success: false` | Accepted |
+| [2](docs/adr/0002-prisma-file-location.md) | Prisma schema/migrations/seed in `apps/api/prisma/`; `src/prisma/` = service + module only | Accepted |
+| [3](docs/adr/0003-docker-compose-infrastructure-only.md) | Compose runs postgres (5432), postgres-test (5433, tmpfs), redis; API runs with `pnpm dev` | Accepted |
+| [4](docs/adr/0004-users-soft-delete.md) | `users.deletedAt` (soft delete) | Accepted |
+| [5](docs/adr/0005-refresh-token-storage.md) | Refresh JWT only in httpOnly cookie, DB stores `sha256`, reuse revokes all sessions | Accepted |
+| [6](docs/adr/0006-password-hashing-bcryptjs.md) | `bcryptjs`, cost 10 | Accepted, re-measure in production |
+| [7](docs/adr/0007-validation-zod.md) | Zod via `nestjs-zod` | Accepted |
+| [8](docs/adr/0008-websocket-event-names.md) | WebSocket event names | Deferred |
+| [9](docs/adr/0009-kanban-position-type.md) | Kanban `position` type (proposal: Float, gap-based) | Deferred |
+| [10](docs/adr/0010-bull-vs-bullmq.md) | Bull vs BullMQ | Deferred |
+| [11](docs/adr/0011-package-versions.md) | NestJS 11, TS 5.9, Prisma 7.10, Zod 4, `@nestjs/jwt` 11.x | Accepted |
+| [12](docs/adr/0012-prisma-7-specifics.md) | `prisma7.config.ts`, client in `src/generated/prisma`, `adapter-pg` | Accepted |
+| [13](docs/adr/0013-response-shaping-zod-response.md) | `@ZodResponse` on every endpoint | Accepted |
+| [14](docs/adr/0014-jest-commonjs.md) | Jest runs CommonJS; `pnpm typecheck` checks tests | Accepted |
+| [15](docs/adr/0015-custom-jwt-guard.md) | Custom global `JwtAuthGuard`, no Passport, user reloaded per request | Accepted |
+| [16](docs/adr/0016-deferred-password-reset-and-rate-limit.md) | Password reset and rate limiting deferred | Accepted |
+| [17](docs/adr/0017-users-auth-module-boundaries.md) | Auth → users module boundaries, no cycles | Accepted |
 
 ---
 
