@@ -149,28 +149,30 @@ taskflow/
 
 ## Current Milestone
 
-**Milestone 1: Project Foundation & Auth**
+Milestones are vertical slices (backend + frontend + tests, deployed), re-planned on 2026-11-21 (ADR-0037). Full plan: WORKFLOW.md §7.
 
-Tasks:
-- [x] Initialize pnpm monorepo + NestJS project (strict mode)
-- [x] Set up Prisma with schema (users + refresh_tokens) + initial migration
-- [x] Docker Compose (PostgreSQL dev + test, Redis)
-- [x] Environment variables (.env.example)
-- [x] Config module (Zod env validation)
-- [x] Global exception filter
-- [x] Response interceptor (standard format)
-- [x] Zod validation pipe (nestjs-zod, global APP_PIPE)
-- [x] Swagger at /api/docs + health endpoint
-- [x] Auth module (register, login, refresh, logout, me)
-- [x] JWT global guard (custom, no Passport — Decision #15)
-- [x] Users module (profile, password)
-- [x] Unit tests + integration tests for auth and users
+| # | Milestone | Status |
+|---|---|---|
+| M1 | Foundation & Auth API | ✅ Done |
+| M2 | Web foundation, auth UI, production walking skeleton | **Next** |
+| M3 | Workspaces, members, invitations | |
+| M4 | Channels, real-time messaging, uploads | |
+| M5 | Kanban boards | |
+| M6 | Notifications, email, background jobs | |
+| M7 | Hardening, polish & launch | |
 
-Completion criteria: User can register, login, receive JWT tokens, refresh them, and logout. All endpoints return standardized response format.
+**Milestone 2: Web Foundation, Auth UI & Production Walking Skeleton**
 
-Branch plan: `chore/project-docs` → `chore/project-foundation` → `feature/auth` → `feature/user-profile`.
+Read first: ADR-0006, 0019, 0020, 0023, 0031, 0033, 0034, 0035, 0036.
 
-Status: all tasks done once `feature/user-profile` is merged. Next: Milestone 2 (Workspaces & Members).
+Branch plan: `chore/api-production-readiness` → `feature/web-foundation` → `feature/web-auth` → `chore/deploy-pipeline`.
+
+- [ ] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
+- [ ] `feature/web-foundation`: Vite + React + TS strict, Tailwind, router, generated API client, single-flight refresh, in-memory auth store, Vite proxy
+- [ ] `feature/web-auth`: login, register, profile, change password, logout
+- [ ] `chore/deploy-pipeline`: Neon + Render + Key Value (Singapore), Vercel proxy, GitHub Actions, Dependabot, UptimeRobot, Sentry; measure the WORKFLOW.md §3 risks
+
+Completion criteria (on production): register / login / reload stays logged in (Chrome and Safari), profile and password work, 6th rapid login → 429, `requestId` traceable in logs, merge to `main` deploys automatically, login p95 recorded in WORKFLOW.md §3.
 
 ---
 
