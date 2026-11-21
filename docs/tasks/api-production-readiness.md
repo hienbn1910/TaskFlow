@@ -87,7 +87,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Red 2** (S4) | New `test/http-hardening.e2e-spec.ts`: every response has a UUID `X-Request-Id`; an incoming UUID is echoed; an error body has `requestId` equal to the header. `errorBodySchema` in helpers gains `requestId` |
 | **Green 2** | `LoggerModule.forRootAsync` in `AppModule` (minimal options: `genReqId`, sets header); `GlobalExceptionFilter` adds `request.id`; `ApiErrorResponse.requestId`; `setupApp`: `app.useLogger(app.get(Logger))`; `main.ts`: `bufferLogs: true`. Filter logs through the pino logger |
 
-### - [ ] P4. ⚠️ Cookie `SameSite=Lax` and `OriginGuard`
+### - [x] P4. ⚠️ Cookie `SameSite=Lax` and `OriginGuard`
 
 | | |
 |---|---|

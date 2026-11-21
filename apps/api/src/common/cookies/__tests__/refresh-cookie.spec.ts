@@ -45,11 +45,12 @@ const requestWithCookies = (cookies: Record<string, unknown>): Request =>
 const createResponse = () => ({ cookie: jest.fn(), clearCookie: jest.fn() });
 
 describe('refresh cookie options', () => {
-  it('should be cross-site and HTTPS-only in production', () => {
+  // ADR-0020: web and API share one origin through the /api proxy, so the cookie is same-site
+  it('should be SameSite=Lax and HTTPS-only in production', () => {
     expect(buildRefreshCookieOptions(true, SEVEN_DAYS_MS)).toEqual({
       httpOnly: true,
       secure: true,
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/api/v1/auth',
       maxAge: SEVEN_DAYS_MS,
     });

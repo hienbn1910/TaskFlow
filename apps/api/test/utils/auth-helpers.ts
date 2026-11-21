@@ -91,9 +91,39 @@ export async function login(app: INestApplication<App>, email: string): Promise<
   return request(app.getHttpServer()).post(`${AUTH_URL}/login`).send({ email, password: PASSWORD });
 }
 
-export async function refresh(app: INestApplication<App>, cookie?: string): Promise<Response> {
-  const req = request(app.getHttpServer()).post(`${AUTH_URL}/refresh`);
-  return cookie === undefined ? req : req.set('Cookie', cookie);
+/** The web app's origin (FRONTEND_URL of .env.test): what a browser sends on cookie routes. */
+export const FRONTEND_ORIGIN = 'http://localhost:5173';
+
+/**
+ * A POST to a cookie route (/auth/refresh, /auth/logout) as a browser sends it: with an `Origin`
+ * header (ADR-0020). `origin: null` sends none, like curl.
+ */
+function cookieRoute(
+  app: INestApplication<App>,
+  path: 'refresh' | 'logout',
+  options: { cookie?: string | undefined; origin?: string | null | undefined },
+): request.Test {
+  const req = request(app.getHttpServer()).post(`${AUTH_URL}/${path}`);
+  const { cookie, origin = FRONTEND_ORIGIN } = options;
+  if (origin !== null) req.set('Origin', origin);
+  if (cookie !== undefined) req.set('Cookie', cookie);
+  return req;
+}
+
+export async function refresh(
+  app: INestApplication<App>,
+  cookie?: string,
+  origin?: string | null,
+): Promise<Response> {
+  return cookieRoute(app, 'refresh', { cookie, origin });
+}
+
+export async function logout(
+  app: INestApplication<App>,
+  cookie?: string,
+  origin?: string | null,
+): Promise<Response> {
+  return cookieRoute(app, 'logout', { cookie, origin });
 }
 
 export async function me(app: INestApplication<App>, accessToken?: string): Promise<Response> {

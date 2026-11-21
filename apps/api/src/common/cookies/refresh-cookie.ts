@@ -11,9 +11,10 @@ export function buildClearCookieOptions(isProduction: boolean): CookieOptions {
   return {
     httpOnly: true, // unreadable from JavaScript: an XSS cannot steal it
     secure: isProduction, // HTTPS only in production; localhost runs on plain HTTP
-    // Production: web (Vercel) and API (Render) are different sites, so the browser only
-    // sends the cookie with sameSite=none (which requires secure=true).
-    sameSite: isProduction ? 'none' : 'lax',
+    // Lax everywhere (ADR-0020): the browser reaches the API through the web app's own origin
+    // (Vercel /api proxy in production, Vite proxy locally), so the cookie is first-party.
+    // Lax also keeps the cookie off cross-site POSTs; OriginGuard adds a second check.
+    sameSite: 'lax',
     path: REFRESH_COOKIE_PATH, // sent only to /api/v1/auth/*
   };
 }

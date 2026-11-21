@@ -13,6 +13,7 @@ import {
   createTestApp,
   errorBodySchema,
   login,
+  logout,
   me,
   PASSWORD,
   refresh,
@@ -149,6 +150,11 @@ describe('Auth (e2e)', () => {
 
       expect(res.status).toBe(200);
       expect(refreshSetCookie(res)).toBeDefined();
+      // Raw body, not parsed: toEqual fails on any extra key such as a refresh token
+      expect(res.body).toEqual({
+        success: true,
+        data: { accessToken: expect.any(String), user: expect.any(Object) },
+      });
       const user = await prisma.user.findUniqueOrThrow({ where: { email } });
       expect(user.lastLoginAt).toBeInstanceOf(Date);
     });
@@ -206,6 +212,10 @@ describe('Auth (e2e)', () => {
       const res = await refresh(app, cookie);
 
       expect(res.status).toBe(200);
+      expect(res.body).toEqual({
+        success: true,
+        data: { accessToken: expect.any(String), user: expect.any(Object) },
+      });
       const newCookie = refreshCookiePair(res);
       expect(newCookie).not.toBe(cookie);
       const sessions = await prisma.refreshToken.findMany({ where: { userId } });
@@ -263,8 +273,9 @@ describe('Auth (e2e)', () => {
     it('should delete the session and clear the cookie; the old cookie no longer refreshes', async () => {
       const { cookie, userId } = await registerUser(app);
 
-      const res = await post('logout').set('Cookie', cookie).expect(200);
+      const res = await logout(app, cookie);
 
+      expect(res.status).toBe(200);
       expect(res.body).toEqual({ success: true, data: null });
       expect(refreshSetCookie(res)).toMatch(/^refresh_token=;/);
       expect(await prisma.refreshToken.count({ where: { userId } })).toBe(0);
@@ -274,9 +285,56 @@ describe('Auth (e2e)', () => {
     it('should be idempotent: no cookie, or called twice, still 200', async () => {
       const { cookie } = await registerUser(app);
 
-      await post('logout').expect(200);
-      await post('logout').set('Cookie', cookie).expect(200);
-      await post('logout').set('Cookie', cookie).expect(200);
+      expect((await logout(app)).status).toBe(200);
+      expect((await logout(app, cookie)).status).toBe(200);
+      expect((await logout(app, cookie)).status).toBe(200);
+    });
+  });
+
+  // ADR-0020: the routes that read the refresh cookie accept only the web app's Origin.
+  // SameSite=Lax already blocks most cross-site POSTs; this check is defence in depth.
+  describe('Origin check on cookie routes', () => {
+    it.each([
+      ['another origin', 'https://evil.example'],
+      ['a look-alike origin', 'http://localhost:5173.evil.example'],
+      ['no Origin header', null],
+    ])('should return 403 on /auth/refresh with %s and keep the session', async (_case, origin) => {
+      const { cookie } = await registerUser(app);
+
+      const res = await refresh(app, cookie, origin);
+
+      expect(res.status).toBe(403);
+      expect(bodyOf(res, errorBodySchema).message).toBe('Invalid origin');
+      // A foreign page must not even clear the cookie (that would log the User out)
+      expect(refreshSetCookie(res)).toBeUndefined();
+      // Rejected before the session was read: the same cookie still rotates normally
+      expect((await refresh(app, cookie)).status).toBe(200);
+    });
+
+    it.each([
+      ['another origin', 'https://evil.example'],
+      ['no Origin header', null],
+    ])('should return 403 on /auth/logout with %s and keep the session', async (_case, origin) => {
+      const { cookie, userId } = await registerUser(app);
+
+      const res = await logout(app, cookie, origin);
+
+      expect(res.status).toBe(403);
+      expect(refreshSetCookie(res)).toBeUndefined();
+      expect(await prisma.refreshToken.count({ where: { userId } })).toBe(1);
+    });
+  });
+
+  describe('Refresh cookie attributes', () => {
+    it('should set the refresh cookie with SameSite=Lax, HttpOnly and the auth path', async () => {
+      const res = await post('register')
+        .send({ email: 'hien@example.com', password: PASSWORD, fullName: 'Hien Nguyen' })
+        .expect(201);
+
+      const setCookie = refreshSetCookie(res) ?? '';
+      expect(setCookie).toMatch(/; SameSite=Lax/);
+      expect(setCookie).toMatch(/; HttpOnly/);
+      expect(setCookie).toMatch(/; Path=\/api\/v1\/auth/);
     });
   });
 

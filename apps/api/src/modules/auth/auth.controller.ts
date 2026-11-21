@@ -1,4 +1,14 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseFilters } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { ZodResponse } from 'nestjs-zod';
@@ -6,6 +16,7 @@ import { ZodResponse } from 'nestjs-zod';
 import { RefreshCookieService } from '@common/cookies/refresh-cookie.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { Public } from '@common/decorators/public.decorator';
+import { OriginGuard } from '@common/guards/origin.guard';
 import type { AuthUser } from '@common/types/auth-user.type';
 import { type UserResponse, UserResponseDto } from '@common/types/user-response.dto';
 
@@ -51,6 +62,7 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @UseGuards(OriginGuard) // reads the cookie: same-origin requests only (ADR-0020)
   @UseFilters(RefreshCookieFilter)
   @ApiCookieAuth()
   @ZodResponse({ status: 200, type: AuthResponseDto, description: 'Token pair rotated' })
@@ -65,6 +77,7 @@ export class AuthController {
   /** Public: must work even when the access token has already expired (spec §3.4). */
   @Public()
   @Post('logout')
+  @UseGuards(OriginGuard)
   @HttpCode(200)
   @ApiCookieAuth()
   @ApiOkResponse({ description: 'Session ended, cookie cleared (data: null)' })
