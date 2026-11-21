@@ -66,7 +66,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** (developer) | `schema.prisma`: `previewFeatures = ["partialIndexes"]`, `@db.Timestamptz(3)` on the 6 fields, `email @db.VarChar(254)`, `@@unique([email], where: { deletedAt: null })` replacing `@unique`. `prisma migrate dev --create-only --name schema_conventions`, then **edit the SQL by hand**: every `ALTER COLUMN … TYPE TIMESTAMPTZ(3) USING "<col>" AT TIME ZONE 'UTC'`. Read the whole file before applying. Apply to dev and test DBs |
 | Review points | No `DROP COLUMN`; index name and `WHERE "deleted_at" IS NULL` present; `prisma migrate dev` afterwards reports no drift |
 
-### - [ ] P2. Login and register on the partial index
+### - [x] P2. Login and register on the partial index
 
 | | |
 |---|---|
