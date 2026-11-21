@@ -1432,15 +1432,16 @@ Giới hạn đã kiểm chứng, ngân sách và các rủi ro cần đo nằm 
 2. Read the ADRs listed under "Read first"
 3. For each branch, follow RULE.md §0:
    a. Spec   → docs/specs/<branch>.md   (scope, inputs/outputs, edge cases, acceptance criteria)
-   b. Plan   → docs/plans/<branch>.md   (data flow, files, schemas, dependencies, decisions)
-   c. Tasks  → docs/tasks/<branch>.md   (small, ordered, one commit each)
-   d. Code + tests per task; full test run; performance and security checklists; refactor
+   b. Plan   → docs/plans/<branch>.md   (data flow, files, schemas, dependencies, decisions,
+                                         seams under test)
+   c. Tasks  → docs/tasks/<branch>.md   (small vertical slices, one commit each, ⚠️ parts marked)
+   d. Per task: failing test → minimal code → green; full test run; review; refactor
    e. Update docs (CLAUDE.md status, ADR index, WORKFLOW.md + WORKFLOW-VI.md if changed)
    f. PR: lint, typecheck, all tests green
 4. Check the milestone's completion criteria on production, then move on
 ```
 
-Tóm tắt: mở giai đoạn hiện tại → đọc các ADR được liệt kê → với mỗi branch làm spec, plan, tasks → code và test từng task → cập nhật tài liệu → PR → kiểm tra tiêu chí hoàn thành trên production.
+Tóm tắt: mở giai đoạn hiện tại → đọc các ADR được liệt kê → với mỗi branch làm spec, plan (kèm danh sách seam được test), tasks → mỗi task: viết test đỏ trước, rồi code tối thiểu cho test xanh → review → cập nhật tài liệu → PR → kiểm tra tiêu chí hoàn thành trên production.
 
 ### Dành cho AI
 
@@ -1451,19 +1452,22 @@ Before generating ANY code:
 3. Check what already exists in the code; never duplicate
 4. If a request conflicts with an ADR, RULE.md or this file: say so and follow the documents
 
-When implementing a feature (inside the Development Flow):
+When implementing a feature (inside the Development Flow, test-first, ADR-0039):
 1. Prisma schema + migration (review the generated SQL: ADR-0022, ADR-0023, ADR-0036)
-2. Repository (workspaceId as a direct column)
-3. Service (business rules, transactions, domain events after commit)
-4. DTOs (Zod) and controller (@ZodResponse)
-5. Tests: unit for services, integration for endpoints, isolation and concurrency where relevant
-6. Frontend: generated client, hooks, components, realtime cache updates
-7. Explain what was built and why
+2. For each behaviour, one slice at a time:
+   a. Red: one failing test at an approved seam (endpoint first; isolation and
+      concurrency tests where relevant). Run it, see it fail for the right reason
+   b. Green: the minimal code, layer by layer as the test needs it —
+      DTO (Zod) → controller (@ZodResponse) → service (rules, transactions,
+      events after commit) → repository (workspaceId as a direct column)
+   c. For ⚠️ parts: stop after (a); the developer writes (b); then review
+3. Frontend: the same loop with Vitest + Testing Library
+4. Full suite, review, refactor; explain what was built and why
 
-When fixing a bug:
-1. Find the root cause first and explain it
-2. Write a test that fails because of the bug
-3. Fix it; the test passes; run the full suite
+When fixing a bug (skill diagnosing-bugs):
+1. Build a fast feedback loop that reproduces the bug, then minimise it
+2. Rank hypotheses, test them one at a time; explain the root cause
+3. Write the regression test, see it fail, fix, see it pass; run the full suite
 ```
 
 ### Mẫu prompt cho các công việc thường gặp

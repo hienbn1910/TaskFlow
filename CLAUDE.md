@@ -34,11 +34,11 @@
 Every feature MUST follow this flow — no skipping steps:
 
 ```
-Spec → Plan → Decompose Tasks → Generate Code → Generate Tests
-  → Run Tests → Fix → Check Performance/Security → Refactor → PR
+Spec → Plan (+ seams) → Decompose Tasks → [Red: failing test → Green: minimal code] × each slice
+  → Run full suite → Fix → Review (spec, standards, performance, security) → Refactor → PR
 ```
 
-Full details in **RULE.md Section 0**.
+Test-first (ADR-0039). Full details in **RULE.md Section 0**.
 
 ---
 
@@ -51,6 +51,8 @@ Full details in **RULE.md Section 0**.
 - [ ] Identify the module, data flow, and all files to create/modify
 
 ### While Writing Code
+- Test first: one failing test at an approved seam, then the minimal code that turns it green (RULE.md §7)
+- For ⚠️ parts: write the failing test only; the developer writes the code
 - Follow Controller → Service → Repository pattern strictly
 - Every tenant-scoped query MUST include `workspaceId` — no exceptions
 - Use Zod for validation, not class-validator
@@ -61,8 +63,9 @@ Full details in **RULE.md Section 0**.
 - Publish domain events only after commit; never call the gateway or mailer directly from a service
 
 ### After Writing Code
-- Generate tests for every service method and endpoint
+- Every endpoint and socket event has integration tests; pure logic has unit tests; only system boundaries are mocked
 - Run full test suite — ensure no regression
+- Review the diff against the spec and RULE.md (skill `review-against-spec`)
 - Check against Performance Checklist (RULE.md Section 4)
 - Check against Security Requirements (RULE.md Section 5)
 - Refactor if needed, then create PR
@@ -236,6 +239,7 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [36](docs/adr/0036-delivery-pipeline-and-database-operations.md) | CI → migrate → deploy hook; pooled vs direct URL; expand–contract; no preview deploys | Accepted |
 | [37](docs/adr/0037-vertical-slice-milestones.md) | Every milestone = BE + FE + tests, deployed from M2 | Accepted |
 | [38](docs/adr/0038-documentation-sources-of-truth.md) | One source of truth per topic; WORKFLOW-VI.md updated in the same PR | Accepted |
+| [39](docs/adr/0039-test-first-at-agreed-seams.md) | Test-first (red → green per slice); seams approved in the plan; endpoint tests with the real DB first; mock only system boundaries; agent writes red, developer writes green for ⚠️ parts | Accepted |
 
 ---
 

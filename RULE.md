@@ -9,51 +9,60 @@
 > Every feature must go through all the steps below. No steps can be skipped.
 
 ```
-[Spec] → [Plan] → [AI Agent decompose task] → [Generate Code] → [Generate Tests] → [Run Tests] → [Fix] → [Check Performance/Security] → [Refactor] → [PR]
+[Spec] → [Plan + seams] → [Decompose tasks] → ┌ [Red: failing test] → [Green: minimal code] ┐ → [Run full suite]
+                                               └──────── repeat, one slice at a time ───────┘
+        → [Fix] → [Review: spec + standards, performance, security] → [Refactor] → [PR]
 ```
 
+Development is test-first (ADR-0039). The agent skills used at each step are listed in CLAUDE.md "Agent skills".
+
 ### Step 1: Spec (Specification)
-- Read the ADRs listed for the milestone (WORKFLOW.md §7) first.
-- Clearly describe the feature's requirements, inputs/outputs, and edge cases.
+- Read the ADRs listed for the milestone (WORKFLOW.md §7) and `GLOSSARY.md` first.
+- Clearly describe the feature's requirements, inputs/outputs, and edge cases, in the `GLOSSARY.md` vocabulary.
 - Define the scope: identify affected endpoints, socket events, modules, and database tables.
 - List the acceptance criteria. Write the spec to `docs/specs/<branch>.md`.
+- Open questions are settled with the developer in rounds (skill `grilling`; `grill-with-docs` when the domain language changes).
 ### Step 2: Plan
 - Define the data flow: Controller → Service → Repository, and the domain events published / consumed.
 - List the files that need to be created or modified.
 - Identify the necessary Zod schemas, DTOs, and entity mappings.
 - Determine dependencies on other modules (one direction only, §1).
-- Write the plan to `docs/plans/<branch>.md`. A real choice between alternatives becomes an ADR.
+- **Seams under test:** list the seams (§7), one line each: what it catches, what it misses. Approving the plan approves the seams.
+- Write the plan to `docs/plans/<branch>.md`. A decision that meets the ADR criteria (`docs/adr/README.md`) becomes an ADR.
 ### Step 3: Task Decomposition (by AI Agent)
-- Break the feature down into smaller tasks, each capable of being generated independently.
-- Order tasks based on dependencies (Schema → Repository → Service → Controller → Tests → Frontend).
-- Provide a clear description for each task: target file, function, and required logic. Write them to `docs/tasks/<branch>.md`.
-### Step 4: Code Generation
-- The AI must read `RULE.md` before writing any code.
-- Generate code following the established dependency order.
-- Ensure every file adheres to the defined folder structure and architectural rules.
-### Step 5: Test Generation
-- Write unit tests for all service methods.
-- Write integration tests for all endpoints and socket events.
-- Ensure tests cover both the "happy path" and error scenarios (§7).
+- Break the feature into small vertical slices, each one behaviour that a test can show (one commit each).
+- Order tasks by dependency (Schema → the endpoint or logic it serves → Frontend). Each task names its test first, then the code.
+- Mark the important parts ⚠️: for those, the agent writes the failing test and the developer writes the code (ADR-0039).
+- Write the tasks to `docs/tasks/<branch>.md`.
+### Step 4: Red — write a failing test
+- Write **one** test for the next behaviour, at a seam approved in the plan (§7, skill `tdd`).
+- Run it and see it fail for the expected reason (not a typo or a missing import).
+- The AI must read `RULE.md` before writing any test or code.
+### Step 5: Green — write the minimal code
+- Write only the code the failing test needs, following the folder structure and architecture rules (§1, §3).
+- Run the test and see it pass. Then return to Step 4 for the next slice of the task.
+- Do not write code that no test asks for; do not refactor here.
 ### Step 6: Test Execution
 - Run the entire test suite—not just the new tests.
 - Ensure no existing tests are broken (prevent regressions).
 ### Step 7: Fix
 - Resolve any failing tests.
 - If a fix impacts other logic, return to Step 6.
-### Step 8: Performance/Security Check
+- A bug that needs investigation follows the `diagnosing-bugs` skill: feedback loop first, regression test before the fix.
+### Step 8: Review — Spec, Standards, Performance, Security
+- Review the branch diff against the spec and against this file (skill `review-against-spec`).
 - Verify against the Performance Checklist (Section 4).
 - Verify against Security Requirements (Section 5).
 - Crucially: ensure all queries include `workspaceId`, raw Prisma models are not exposed, and socket events go only to authorized rooms.
 ### Step 9: Refactor
-- Eliminate redundant code.
+- With every test green: eliminate redundant code.
 - Ensure functions are ≤ 30 lines long and have ≤ 3 parameters.
-- Maintain consistent naming conventions.
-- Verify the order of imports.
+- Maintain consistent naming conventions (`GLOSSARY.md`).
+- Verify the order of imports. Run the full suite again.
 ### Step 10: PR (Pull Request)
 - Follow the commit message format specified in Section 8
-- Update the docs: CLAUDE.md status, ADR index, WORKFLOW.md **and** WORKFLOW-VI.md if the plan changed (ADR-0038)
-- Provide a clear description of the changes in the PR description
+- Update the docs: CLAUDE.md status, ADR index, WORKFLOW.md **and** WORKFLOW-VI.md if the plan changed (ADR-0038), `GLOSSARY.md` if terms changed
+- Write the PR description with the `pr` skill template (Summary, Evidence, Merge Danger)
 - Ensure that linting, type checking, and all tests pass
 
 ## 1. Folder Structure
@@ -343,10 +352,23 @@ await this.prisma.task.createMany({ data: items });
 
 ## 7. Testing Requirements
 
+Tests are written **before** the code, one slice at a time (§0 Steps 4–5, ADR-0039, skill `tdd`).
+
+### Seams (where tests go)
+| Seam | Kind | Location |
+|---|---|---|
+| HTTP endpoint (primary) | Integration: real app + supertest + test database | `apps/api/test/*.e2e-spec.ts` |
+| Socket event | Integration: real app + `socket.io-client` | `apps/api/test/*.e2e-spec.ts` |
+| Pure logic (rules, mappers, utils, schemas, position maths) | Unit | `src/**/__tests__/*.spec.ts` |
+| Database guarantee (hash only, cascade, constraint) | Integration at the repository | `apps/api/test/*.repository.e2e-spec.ts` |
+| Frontend | Vitest + Testing Library; Playwright (M7) | `apps/web` (§11) |
+
+A service is tested through its endpoint. A unit test for a service is written only for a branch HTTP cannot reach, mocking only system boundaries. The seams of a branch are approved in its plan.
+
 ### Minimum Coverage
-- Every service method must have at least one unit test
-- Every API endpoint must have at least one integration test
+- Every API endpoint must have integration tests for its success path and its main error paths
 - Every socket event must have an integration test with `socket.io-client`
+- Every piece of pure logic must have unit tests
 - Critical flows must have E2E tests: auth, workspace creation, invitations, messaging, task moves
 - Every workspace feature: an **isolation test** (another tenant gets 404 and no socket events)
 - Every rule of ADR-0032: a **concurrency test** (two competing requests with `Promise.all`)
@@ -354,20 +376,23 @@ await this.prisma.task.createMany({ data: items });
 
 ### Test Naming
 ```typescript
-describe('WorkspaceService', () => {
-  describe('create', () => {
-    it('should create workspace with valid data', async () => {});
-    it('should throw BadRequestException when name is empty after trimming', async () => {});
-    it('should set creator as OWNER role', async () => {});
-  });
+describe('POST /workspaces/:workspaceId/invitations', () => {
+  it('should create a Pending invitation when the caller is an Admin', async () => {});
+  it('should return 403 when the caller has the Member role', async () => {});
+  it('should return 404 when the caller is not a Member', async () => {});
 });
 ```
+Names describe behaviour in `GLOSSARY.md` terms, not implementation ("calls repository.create").
 
 ### Rules
+- Red before green: see the new test fail for the expected reason before writing the code
 - Tests must not depend on each other — each test sets up its own data
 - Use factories for test data — no hardcoded objects repeated across tests
-- Mock external services (Cloudinary, Resend) — never call real APIs in tests; locally, emails go to Mailpit
+- Expected values are literals or come from the spec — never recomputed the way the code computes them
+- **Mock only system boundaries:** time, bcrypt, Cloudinary, the mail adapter (Resend), the queue. Never mock repositories, services, guards, Prisma or the database in new tests. Existing M1 tests that mock repositories stay until a refactor breaks them; then replace them with an endpoint test
+- Never call real external APIs in tests; locally, emails go to Mailpit
 - Integration tests must use a real test database — not mocked Prisma
+- Check through the interface, not the database, unless the behaviour is a database guarantee (see Seams)
 - Compare timestamps as instants (`getTime()`), not strings (ADR-0023)
 - Frontend: Vitest + Testing Library for hooks and critical components; Playwright for end-to-end flows (§11)
 

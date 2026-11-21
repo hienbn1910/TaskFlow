@@ -83,3 +83,9 @@ Grouped by the system design area they answer. The numbers they rely on are in W
 | [0036](0036-delivery-pipeline-and-database-operations.md) | CI/CD, migrations, two DB URLs, expand–contract | Shipping | Accepted |
 | [0037](0037-vertical-slice-milestones.md) | Vertical-slice milestones, deployed from M2 | Whole system | Accepted |
 | [0038](0038-documentation-sources-of-truth.md) | One source of truth per topic | Whole system | Accepted |
+
+### Agent skills and development flow (2026-11-21)
+
+| ADR | Title | Status |
+|---|---|---|
+| [0039](0039-test-first-at-agreed-seams.md) | Test first, at seams agreed in the plan | Accepted |
