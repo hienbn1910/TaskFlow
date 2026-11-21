@@ -1,6 +1,6 @@
 # ADR-0022: Soft-delete policy, partial unique indexes, invitation lifecycle
 
-- **Status:** Accepted (extends Decision #4)
+- **Status:** Accepted (extends Decision #4; amended 2026-11-22: partial indexes declared in `schema.prisma`)
 - **Date:** 2026-11-21
 
 ## Context
@@ -31,6 +31,11 @@
 - `invitations(workspace_id, email) WHERE status = 'PENDING'`
 
 At the start of M3, check whether Prisma 7.10 can declare partial indexes in `schema.prisma`. If not, write them by hand in the migration SQL, add a comment next to the model, and review every later generated migration so it does not drop them.
+
+**Amended (2026-11-22, M2):** checked on Prisma 7.10.1. Partial indexes are supported behind the preview feature `partialIndexes` (`previewFeatures = ["partialIndexes"]`). A partial unique index is declared in `schema.prisma`, for example `@@unique([email], where: { deletedAt: null })`, or `where: raw("…")` for a condition that is not a simple equality. `prisma migrate dev` then knows the index and does not drop it.
+- Lookups on these columns use `findFirst` with the same condition (`deletedAt: null`): a partial index is not a full unique key, so `findUnique` cannot use it.
+- `channels(workspace_id, lower(name))` also needs an **expression**. Whether the preview feature accepts it is checked at the start of M3; if not, that one index falls back to hand-written SQL as described above.
+- Risk accepted: a preview feature may change its syntax in a later Prisma version. Prisma is pinned to `~7.10` (ADR-0011), and the generated SQL is still reviewed by hand (ADR-0036).
 
 ### Invitation lifecycle
 - Status: `PENDING → ACCEPTED | REVOKED`. "Expired" is **derived** (`PENDING` and `expiresAt < now`): nothing has to run for an invitation to expire.

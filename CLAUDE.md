@@ -242,7 +242,7 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [19](docs/adr/0019-region-colocation-no-cache.md) | Render, Key Value, Neon in one region (Singapore); no app cache until measured; `Cache-Control: no-store` | Accepted |
 | [20](docs/adr/0020-same-origin-proxy-cookie-csrf.md) | Vercel/Vite proxy `/api` → same origin; cookie `SameSite=Lax`; Origin check on cookie routes; socket direct with token | Accepted |
 | [21](docs/adr/0021-tenant-key-on-every-table.md) | `workspaceId` on every tenant table + composite FKs `(workspaceId, parentId)` | Accepted |
-| [22](docs/adr/0022-soft-delete-and-uniqueness.md) | Delete kind per entity; partial unique indexes; invitations PENDING → ACCEPTED/REVOKED, token hashed | Accepted |
+| [22](docs/adr/0022-soft-delete-and-uniqueness.md) | Delete kind per entity; partial unique indexes; invitations PENDING → ACCEPTED/REVOKED, token hashed | Accepted, amended in M2 (Prisma `partialIndexes`) |
 | [23](docs/adr/0023-timestamptz-utc.md) | Every `DateTime` is `@db.Timestamptz(3)` | Accepted |
 | [24](docs/adr/0024-messaging-data-model.md) | Cursor `(createdAt, id)`; one-level threads with counters; unread in one query; 4,000-char limit; `clientMessageId`; raw SQL policy | Accepted |
 | [25](docs/adr/0025-realtime-design.md) | Socket auth lifecycle; rooms `user`/`workspace`/`channel`/`board`; `resource:verb` events; best-effort + resync | Accepted |

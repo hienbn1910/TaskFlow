@@ -66,7 +66,7 @@ Grouped by the system design area they answer. The numbers they rely on are in W
 | [0019](0019-region-colocation-no-cache.md) | One region; no application cache until measured | Foundations, Scaling | Accepted |
 | [0020](0020-same-origin-proxy-cookie-csrf.md) | Same-origin proxy, `SameSite=Lax` cookie, Origin check | Security | Accepted |
 | [0021](0021-tenant-key-on-every-table.md) | `workspaceId` on every tenant table + composite FKs | Data, Security | Accepted |
-| [0022](0022-soft-delete-and-uniqueness.md) | Soft-delete policy, partial unique indexes, invitation lifecycle | Data | Accepted |
+| [0022](0022-soft-delete-and-uniqueness.md) | Soft-delete policy, partial unique indexes, invitation lifecycle | Data | Accepted, amended in M2 |
 | [0023](0023-timestamptz-utc.md) | Every timestamp is `timestamptz` (UTC) | Data | Accepted |
 | [0024](0024-messaging-data-model.md) | Messaging: cursor, threads, unread, limits, idempotency, raw SQL | Data, Communication | Accepted |
 | [0025](0025-realtime-design.md) | Real-time: auth lifecycle, rooms, events, resync | Communication, Security | Accepted |
