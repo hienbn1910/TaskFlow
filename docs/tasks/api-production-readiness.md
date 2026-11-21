@@ -108,20 +108,20 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Rate limiting (2.5)
 
-### - [ ] P6. `credentialsKey` and `resetThrottler`
+### - [x] P6. `credentialsKey` and `resetThrottler`
 
 | | |
 |---|---|
 | **Red** (unit, S7) | `common/throttling/__tests__/credentials-key.spec.ts`: `("1.2.3.4", { email: " A@X.com " })` → `"1.2.3.4:a@x.com"`; missing / invalid email / non-object body → `undefined` |
 | **Green** | `common/throttling/credentials-key.ts` (reuses `emailSchema.safeParse`); `common/throttling/throttle.constants.ts` (limits of spec §6.1) |
-| Also | `test/utils/throttler.ts`: `resetThrottler(app)`; added to `beforeEach` of every e2e file (no effect yet; ready for P7) |
+| Moved to P7 | `test/utils/throttler.ts` `resetThrottler(app)`: it needs `ThrottlerStorageService`, which exists only once P7 registers `ThrottlerModule` |
 
 ### - [ ] P7. ⚠️ `AppThrottlerGuard`: login, register, refresh limits
 
 | | |
 |---|---|
 | **Red** (agent, S5) | New `test/rate-limit.e2e-spec.ts`: 6th login (same IP + email, wrong password) → 429 with `Retry-After` and the standard error body (`requestId`, message `"Too many requests"`); `"A@x.com"` and `"a@x.com "` share the counter; 6th register from one IP → 429; with `TRUST_PROXY=0`, changing `X-Forwarded-For` does not reset the login counter; with `TRUST_PROXY=1` (second app instance), two `X-Forwarded-For` clients get separate counters (covers the `trust proxy` branch of P5) |
-| **Green** (developer) | `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
+| **Green** (developer) | `test/utils/throttler.ts` `resetThrottler(app)` (clears `ThrottlerStorageService.storage`) in `beforeEach` of every e2e file; `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
 | Review points | Tracker uses `req.ip` only (never a raw header); counters per throttler name; `credentials` key never logged unmasked |
 
 ### - [ ] P8. Per-User limits, password limit, health exempt
