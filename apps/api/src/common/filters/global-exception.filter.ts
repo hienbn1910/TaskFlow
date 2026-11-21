@@ -15,6 +15,7 @@ import {
   PRISMA_ERROR_STATUS,
   toErrorCode,
 } from '@common/constants/error-codes.constant';
+import { requestIdOf, resolveRequestId } from '@common/logging/request-id';
 import type { ApiErrorResponse, ErrorDetail } from '@common/types/api-response.type';
 import { maskSensitiveText } from '@common/utils/mask.util';
 
@@ -45,7 +46,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
     const normalized = normalizeError(exception);
     this.logError(exception, normalized, request);
-    response.status(normalized.statusCode).json(toErrorBody(normalized));
+    // Fallback only if the logging middleware did not run (then no header was sent either)
+    const requestId = requestIdOf(request) ?? resolveRequestId(request.headers['x-request-id']);
+    response.status(normalized.statusCode).json(toErrorBody(normalized, requestId));
   }
 
   private logError(exception: unknown, error: NormalizedError, request: Request): void {
@@ -83,7 +86,7 @@ export function normalizeError(exception: unknown): NormalizedError {
   return { statusCode: HttpStatus.INTERNAL_SERVER_ERROR, message: INTERNAL_ERROR_MESSAGE };
 }
 
-function toErrorBody(error: NormalizedError): ApiErrorResponse {
+function toErrorBody(error: NormalizedError, requestId: string): ApiErrorResponse {
   return {
     success: false,
     statusCode: error.statusCode,
@@ -91,6 +94,7 @@ function toErrorBody(error: NormalizedError): ApiErrorResponse {
     message: error.message,
     ...(error.details && error.details.length > 0 ? { details: error.details } : {}),
     timestamp: new Date().toISOString(),
+    requestId,
   };
 }
 

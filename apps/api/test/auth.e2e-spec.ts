@@ -192,6 +192,7 @@ describe('Auth (e2e)', () => {
           error: 'UNAUTHORIZED',
           message: AUTH_ERROR.INVALID_CREDENTIALS,
           timestamp: expect.any(String),
+          requestId: expect.any(String), // differs per request; the rest is identical
         });
         expect(refreshSetCookie(res)).toBeUndefined();
       }

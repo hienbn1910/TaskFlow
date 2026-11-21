@@ -8,7 +8,8 @@ import { AppModule } from './app.module';
 import { setupApp, setupSwagger } from './setup-app';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  // bufferLogs: startup logs wait until setupApp switches to pino, so they are JSON too
+  const app = await NestFactory.create(AppModule, { bufferLogs: true });
   const config = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
   setupApp(app);

@@ -14,12 +14,15 @@ import { GlobalExceptionFilter, normalizeError } from '../global-exception.filte
 const prismaError = (code: string): PrismaClientKnownRequestError =>
   new PrismaClientKnownRequestError('db error', { code, clientVersion: 'test' });
 
-const createHost = () => {
+const REQUEST_ID = '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34';
+
+/** `id` is what pino-http sets on the request; `undefined` simulates a request it never saw. */
+const createHost = (id: string | undefined = REQUEST_ID) => {
   const json = jest.fn();
   const status = jest.fn().mockReturnValue({ json });
   const host = {
     switchToHttp: () => ({
-      getRequest: () => ({ method: 'POST', originalUrl: '/api/v1/auth/login' }),
+      getRequest: () => ({ method: 'POST', originalUrl: '/api/v1/auth/login', headers: {}, id }),
       getResponse: () => ({ status }),
     }),
   } as unknown as ArgumentsHost; // Partial mock — only the methods the filter uses
@@ -89,7 +92,18 @@ describe('GlobalExceptionFilter', () => {
       error: 'NOT_FOUND',
       message: 'Not here',
       timestamp: expect.any(String),
+      requestId: REQUEST_ID,
     });
+  });
+
+  it('should still send a UUID requestId when the request has no id', () => {
+    const { host, json } = createHost(undefined);
+
+    filter.catch(new NotFoundException('Not here'), host);
+
+    expect(json).toHaveBeenCalledWith(
+      expect.objectContaining({ requestId: expect.stringMatching(/^[0-9a-f-]{36}$/) }),
+    );
   });
 
   it('should log 5xx errors with stack and 4xx as warnings', () => {

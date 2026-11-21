@@ -78,7 +78,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## HTTP hardening
 
-### - [ ] P3. Request id and `requestId` in error bodies
+### - [x] P3. Request id and `requestId` in error bodies
 
 | | |
 |---|---|

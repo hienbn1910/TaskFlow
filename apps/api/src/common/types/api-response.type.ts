@@ -10,6 +10,8 @@ export interface ApiErrorResponse {
   readonly message: string;
   readonly details?: readonly ErrorDetail[];
   readonly timestamp: string;
+  /** Same value as the `X-Request-Id` response header: lets a User report an error we can find in the logs (ADR-0035). */
+  readonly requestId: string;
 }
 
 export interface PaginationMeta {
