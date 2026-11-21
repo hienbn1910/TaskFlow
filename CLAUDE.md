@@ -42,6 +42,24 @@ Test-first (ADR-0039). Full details in **RULE.md Section 0**.
 
 ---
 
+## Agent skills
+
+Project skills live in `.claude/skills/` (index, sources and every change from upstream: [`.claude/skills/README.md`](.claude/skills/README.md)). Use them at these steps of RULE.md §0:
+
+| Step | Skill | What it does here |
+|---|---|---|
+| 1 Spec, open questions | `grilling` (or `/grill-me`) | Settles decisions in rounds of ≤ 5 numbered questions with a recommended answer; never re-asks what an ADR decided |
+| 1–2 when domain words change | `domain-modeling` (or `/grill-with-docs`) | Keeps `GLOSSARY.md` exact; proposes ADRs that meet the criteria in `docs/adr/README.md` |
+| 2 Plan, 4–5 Red → Green | `tdd` | Lists "Seams under test" in the plan; then one failing test → minimal code per slice; for ⚠️ parts the agent writes only the failing test |
+| 7 Fix (hard bugs) | `diagnosing-bugs` | Feedback loop first, ranked hypotheses shown to the developer, regression test before the fix |
+| 8 Review | `review-against-spec` | Diff vs spec and vs RULE.md / GLOSSARY / ADRs, two separate reports |
+| 10 PR | `pr` | Ready-to-paste title and body (Summary, Evidence, Merge Danger, Decisions); the developer opens the PR |
+| Long sessions | `/handoff` | Handoff document in `%TEMP%` for the next session |
+
+Not used on purpose: `implement`, `implement-spec`, `triage`, `wayfinder`, `to-spec`, `to-tickets`, `codebase-design` and others (reasons in the README). A skill never overrides RULE.md, an ADR or this file: on conflict, fix the skill in a branch.
+
+---
+
 ## AI Agent Behavior Rules
 
 ### Before Writing Code
@@ -96,9 +114,11 @@ taskflow/
 │   └── web/                          # React + Vite frontend (from M2, RULE.md §11)
 │       ├── src/
 │       └── package.json
+├── .claude/skills/                   # Project agent skills (committed; local .claude/* files are ignored)
 ├── docs/
 │   ├── adr/                          # Architecture Decision Records (index: README.md)
 │   ├── specs/ plans/ tasks/          # Per-branch spec, plan, task list (RULE.md §0)
+├── GLOSSARY.md                       # Domain language
 ├── docker-compose.yml                # PostgreSQL (dev + test) + Redis (+ Mailpit from M6)
 ├── pnpm-workspace.yaml               # pnpm workspaces monorepo
 ├── RULE.md                           # Code rules and standards

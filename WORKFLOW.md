@@ -1465,6 +1465,18 @@ When fixing a bug (skill diagnosing-bugs):
 3. Write the regression test, see it fail, fix, see it pass; run the full suite
 ```
 
+### Agent Skills
+
+The agent uses the project skills in `.claude/skills/` at fixed steps of the flow; the table is in CLAUDE.md "Agent skills". The developer can start some of them directly:
+
+| Command | When |
+|---|---|
+| `/grill-me` | Before a spec, or on any open question (for example the domain question of ADR-0029) |
+| `/grill-with-docs` | When a feature brings new domain words (start of M3, M4, M5, M6) |
+| `/handoff` | Before ending a long session, so the next one starts from a short document |
+
+`grilling`, `domain-modeling`, `tdd`, `diagnosing-bugs`, `review-against-spec` and `pr` are picked up by the agent when the step needs them.
+
 ### Prompt Templates for Common Tasks
 
 **Implementing a new feature:**
@@ -1517,6 +1529,7 @@ RULE.md                          ← Code rules and standards (backend §1–§1
 WORKFLOW.md                      ← This file: plan, NFR, architecture, schema, API, milestones
 WORKFLOW-VI.md                   ← Vietnamese translation of this file + glossary
 GLOSSARY.md                      ← Domain language: one name per concept, used in code, API and UI
+.claude/skills/                  ← Project agent skills and their adaptations (README.md)
 docs/adr/                        ← Architecture Decision Records (one decision per file)
 docs/specs/ docs/plans/ docs/tasks/   ← Per-branch spec, plan, task list
 apps/api/prisma/schema.prisma    ← Source of truth for implemented tables
@@ -1535,3 +1548,4 @@ README.md                        ← Public project documentation (completed in 
 | 2026-11-04 | Initial workflow document created |
 | 2026-11-21 | System design review: Non-Functional Requirements & Capacity Budget (§3); architecture, module map and critical flows (§3); schema with tenant keys, composite FKs, timestamptz, partial unique indexes (§4); API conventions and endpoints updated (§5); features updated (§6); milestones re-planned as vertical slices deployed from M2 (§7); deployment updated for verified free-tier limits (§8). Decisions recorded as ADR-0001 … ADR-0038 |
 | 2026-11-21 | Glossary session (`GLOSSARY.md`): workspaces have no slug; ownership transfer makes the previous Owner an Admin; each Board has one Done column that drives completion; blocking and deleting Users are operator actions, self-service deletion is an M7 stretch |
+| 2026-11-21 | Agent skills adopted (`.claude/skills/`, CLAUDE.md "Agent skills"); development flow switched to test-first at seams agreed in the plan (ADR-0039, §9) |

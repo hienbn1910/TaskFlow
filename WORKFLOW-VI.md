@@ -1470,6 +1470,18 @@ When fixing a bug (skill diagnosing-bugs):
 3. Write the regression test, see it fail, fix, see it pass; run the full suite
 ```
 
+### Agent Skills
+
+Agent dùng các skill của dự án trong `.claude/skills/` ở những bước cố định của quy trình; bảng chi tiết ở mục "Agent skills" của CLAUDE.md. Lập trình viên có thể tự gọi một số skill:
+
+| Lệnh | Khi nào |
+|---|---|
+| `/grill-me` | Trước khi viết spec, hoặc khi có câu hỏi còn mở (ví dụ câu hỏi về domain trong ADR-0029) |
+| `/grill-with-docs` | Khi tính năng mang tới thuật ngữ nghiệp vụ mới (đầu M3, M4, M5, M6) |
+| `/handoff` | Trước khi kết thúc một phiên dài, để phiên sau bắt đầu từ một tài liệu ngắn |
+
+`grilling`, `domain-modeling`, `tdd`, `diagnosing-bugs`, `review-against-spec` và `pr` được agent tự dùng khi bước đó cần.
+
 ### Mẫu prompt cho các công việc thường gặp
 
 **Làm một tính năng mới:**
@@ -1522,6 +1534,7 @@ RULE.md                          ← Quy tắc và tiêu chuẩn code (backend �
 WORKFLOW.md                      ← Kế hoạch: NFR, kiến trúc, schema, API, các giai đoạn
 WORKFLOW-VI.md                   ← File này: bản dịch tiếng Việt + giải thích thuật ngữ
 GLOSSARY.md                      ← Ngôn ngữ nghiệp vụ: mỗi khái niệm một tên, dùng chung cho code, API, UI
+.claude/skills/                  ← Các agent skill của dự án và phần chỉnh sửa cho dự án (README.md)
 docs/adr/                        ← Architecture Decision Records (mỗi file một quyết định)
 docs/specs/ docs/plans/ docs/tasks/   ← Spec, plan, danh sách task của từng branch
 apps/api/prisma/schema.prisma    ← Nguồn sự thật cho các bảng đã xây
@@ -1790,3 +1803,4 @@ Một sự kiện được gửi đến nhiều người nhận. Một tin nhắ
 | 04-11-2026 | Dịch sang tiếng Việt và thêm giải thích thuật ngữ |
 | 21-11-2026 | Rà soát thiết kế hệ thống: thêm Yêu cầu phi chức năng & Ngân sách tài nguyên (§3); kiến trúc, bản đồ module và các luồng quan trọng (§3); schema có khóa tenant, composite FK, timestamptz, partial unique index (§4); cập nhật quy ước API và endpoint (§5); cập nhật tính năng (§6); lập lại các giai đoạn theo lát dọc, deploy từ M2 (§7); cập nhật triển khai theo giới hạn free tier đã kiểm chứng (§8). Các quyết định được ghi thành ADR-0001 … ADR-0038. Bổ sung thuật ngữ mới (§11) |
 | 21-11-2026 | Phiên chốt thuật ngữ (`GLOSSARY.md`): workspace không có slug; chuyển quyền sở hữu thì Owner cũ thành Admin; mỗi Board có một Done column quyết định việc hoàn thành; khoá và xoá User là thao tác của người vận hành, tự xoá tài khoản là mở rộng của M7 |
+| 21-11-2026 | Áp dụng agent skills (`.claude/skills/`, mục "Agent skills" trong CLAUDE.md); quy trình chuyển sang viết test trước, tại các seam được duyệt trong plan (ADR-0039, §9) |
