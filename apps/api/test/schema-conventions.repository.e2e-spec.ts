@@ -41,6 +41,17 @@ describe('Schema conventions (integration)', () => {
     expect(columns).toEqual([]);
   });
 
+  /**
+   * @prisma/adapter-pg sends DateTime parameters without an offset, so PostgreSQL reads them in
+   * the session time zone. Every write is correct only while the session runs in UTC: the
+   * database default is pinned by a migration, and this test fails if that is ever lost.
+   */
+  it('should run application sessions in UTC', async () => {
+    const rows = await prisma.$queryRaw<{ TimeZone: string }[]>`SHOW TIME ZONE`;
+
+    expect(rows).toEqual([{ TimeZone: 'UTC' }]);
+  });
+
   it('should read back the same instant that was written', async () => {
     const instant = new Date('2026-11-22T10:15:30.123Z');
     const { id } = await prisma.user.create({
