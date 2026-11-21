@@ -46,7 +46,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Setup
 
-### - [ ] P0. Dependencies and env keys
+### - [x] P0. Dependencies and env keys
 
 | | |
 |---|---|
@@ -58,7 +58,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Schema (2.1)
 
-### - [ ] P1. ⚠️ Schema conventions migration
+### - [x] P1. ⚠️ Schema conventions migration
 
 | | |
 |---|---|
@@ -70,7 +70,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 | | |
 |---|---|
-| **Red** | `test/auth.e2e-spec.ts` (S1): `should register with the email of a soft-deleted User`; `should log in the new User when an old User with the same email was soft-deleted`; `should return 201 for one and 409 for the other when two registrations with the same email race` (`Promise.all`). The existing "duplicate email → 409" stays. Red: `findUnique` on `email` no longer compiles / finds the deleted row |
+| **Red** | `test/auth.e2e-spec.ts` (S1): `should register with the email of a soft-deleted User`; `should log in the new User when an old User with the same email was soft-deleted`; `should return 201 for one and 409 for the other when two registrations with the same email race` (`Promise.all`). The existing "duplicate email → 409" stays. Red: `findUnique` on `email` still compiles (Prisma keeps `email` in `UserWhereUniqueInput` for a partial index) but finds the soft-deleted row at runtime |
 | **Green** | `users.repository.ts`: `existsByEmail`, `findByEmailWithPassword` → `findFirst({ where: { email, deletedAt: null } })`; update their comments |
 | Note | Soft-deleted User set up with `prisma.user.update` in the test (setup, not assertion) |
 
