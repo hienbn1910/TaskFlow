@@ -7,7 +7,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
-import { generateRequestId } from '@common/logging/request-id';
+import { buildLoggerOptions } from '@common/logging/logger.options';
 import { throttlerOptions } from '@common/throttling/throttler.options';
 import { appConfig, configLoaders, validateEnv } from '@config/index';
 import { AuthModule } from '@modules/auth/auth.module';
@@ -24,14 +24,11 @@ import { PrismaModule } from './prisma/prisma.module';
       load: configLoaders,
       validate: validateEnv,
     }),
-    // pino-http: request id + one log line per request (ADR-0035). Level/redact options: task P9
+    // pino-http: request id + one JSON line per request, secrets redacted (ADR-0035)
     LoggerModule.forRootAsync({
       inject: [appConfig.KEY],
       useFactory: (config: ConfigType<typeof appConfig>) => ({
-        pinoHttp: {
-          genReqId: generateRequestId,
-          level: config.nodeEnv === 'test' ? 'silent' : 'info',
-        },
+        pinoHttp: buildLoggerOptions(config),
       }),
     }),
     // Rate limiting in memory (ADR-0031). The guard is registered in AuthModule, after JwtAuthGuard

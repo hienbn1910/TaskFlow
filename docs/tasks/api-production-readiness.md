@@ -135,7 +135,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Logs (2.6)
 
-### - [ ] P9. pino options: levels, redact, pretty in dev
+### - [x] P9. pino options: levels, redact, pretty in dev
 
 | | |
 |---|---|
