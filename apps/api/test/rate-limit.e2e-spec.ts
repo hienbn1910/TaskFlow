@@ -3,7 +3,14 @@ import request from 'supertest';
 import type { App } from 'supertest/types';
 
 import { PrismaService } from '../src/prisma/prisma.service';
-import { AUTH_URL, bodyOf, createTestApp, errorBodySchema, PASSWORD } from './utils/auth-helpers';
+import {
+  AUTH_URL,
+  bodyOf,
+  createTestApp,
+  errorBodySchema,
+  PASSWORD,
+  registerUser,
+} from './utils/auth-helpers';
 import { resetDb } from './utils/reset-db';
 import { resetThrottler } from './utils/throttler';
 
@@ -112,6 +119,56 @@ describe('Rate limiting (e2e)', () => {
       const res = await register(5);
       expect(res.status).toBe(429);
       expect(Number(res.headers['retry-after'])).toBeGreaterThan(60);
+    });
+  });
+
+  describe('PATCH /users/password: 5 / 15 min per User', () => {
+    const changePassword = (accessToken: string) =>
+      request(app.getHttpServer())
+        .patch('/api/v1/users/password')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ currentPassword: WRONG_PASSWORD, newPassword: 'NewSecret456' });
+
+    // Passing proves the guard order too: the key is the User, known only after JwtAuthGuard
+    it('should return 429 on the 6th attempt of one User, not for another User', async () => {
+      const hien = await registerUser(app, 'hien@example.com');
+      const other = await registerUser(app, 'other@example.com');
+
+      expect(await statusesOf(5, () => changePassword(hien.accessToken))).toEqual([
+        400, 400, 400, 400, 400,
+      ]);
+
+      const res = await changePassword(hien.accessToken);
+      expect(res.status).toBe(429);
+      expect(Number(res.headers['retry-after'])).toBeGreaterThan(60);
+      expect((await changePassword(other.accessToken)).status).toBe(400);
+    });
+  });
+
+  describe('Authenticated routes: 120 / min per User', () => {
+    // 61+ requests: an authenticated User is not held to the anonymous 60 / min per IP
+    it('should allow 120 requests of one User per minute and return 429 on the 121st', async () => {
+      const { accessToken } = await registerUser(app);
+      const getMe = () =>
+        request(app.getHttpServer())
+          .get(`${AUTH_URL}/me`)
+          .set('Authorization', `Bearer ${accessToken}`);
+
+      const statuses = await statusesOf(120, getMe);
+
+      expect(statuses.filter((status) => status !== 200)).toEqual([]);
+      expect((await getMe()).status).toBe(429);
+    });
+  });
+
+  describe('GET /health', () => {
+    // Render's health check calls it often from one IP: a 429 would get the service restarted
+    it('should never be rate limited', async () => {
+      const statuses = await statusesOf(70, () =>
+        request(app.getHttpServer()).get('/api/v1/health'),
+      );
+
+      expect(statuses.filter((status) => status !== 200)).toEqual([]);
     });
   });
 

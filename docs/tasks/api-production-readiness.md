@@ -124,7 +124,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** (developer) | `test/utils/throttler.ts` `resetThrottler(app)` (clears `ThrottlerStorageService.storage`) in `beforeEach` of every e2e file; `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
 | Review points | Tracker uses `req.ip` only (never a raw header); counters per throttler name; `credentials` key never logged unmasked |
 
-### - [ ] P8. Per-User limits, password limit, health exempt
+### - [x] P8. Per-User limits, password limit, health exempt
 
 | | |
 |---|---|

@@ -9,7 +9,7 @@ import { DEFAULT_LIMITS, THROTTLER, TOO_MANY_REQUESTS_MESSAGE } from './throttle
  * Default storage: in memory (one instance, ADR-0018; no Redis commands).
  */
 export const throttlerOptions: ThrottlerModuleOptions = {
-  throttlers: [THROTTLER.ANONYMOUS, THROTTLER.CREDENTIALS].map((name) => ({
+  throttlers: Object.values(THROTTLER).map((name) => ({
     name,
     ...DEFAULT_LIMITS[name],
   })),

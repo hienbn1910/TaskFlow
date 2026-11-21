@@ -13,7 +13,8 @@ import { THROTTLER } from '@common/throttling/throttle.constants';
 /**
  * Rate limiting with named throttlers (ADR-0031, plan §3.1). For each throttler this guard
  * decides whether it applies to the request and with which key:
- * - `anonymous`: the client IP;
+ * - `anonymous`: the client IP, for requests WITHOUT a User;
+ * - `user`: the User id, for requests WITH a User (set by JwtAuthGuard, which runs first);
  * - `credentials`: IP + normalized email, only on routes marked @ThrottleCredentials().
  * A throttler that does not apply is skipped (no counter touched).
  *
@@ -49,7 +50,9 @@ export class AppThrottlerGuard extends ThrottlerGuard {
     const request = context.switchToHttp().getRequest<Request>();
     switch (name) {
       case THROTTLER.ANONYMOUS:
-        return this.getTracker(request);
+        return request.user === undefined ? this.getTracker(request) : undefined;
+      case THROTTLER.USER:
+        return request.user?.id;
       case THROTTLER.CREDENTIALS:
         return this.credentialsEnabled(context)
           ? credentialsKey(await this.getTracker(request), request.body)

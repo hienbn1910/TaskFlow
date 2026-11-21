@@ -37,3 +37,13 @@ export const ROUTE_LIMITS = {
 } as const satisfies Record<string, ThrottleLimit>;
 
 export const TOO_MANY_REQUESTS_MESSAGE = 'Too many requests';
+
+/**
+ * For `@SkipThrottle(SKIP_ALL_THROTTLERS)`. A bare `@SkipThrottle()` only skips a throttler
+ * named "default", which this app does not have: every named throttler must be listed.
+ */
+export const SKIP_ALL_THROTTLERS = {
+  [THROTTLER.ANONYMOUS]: true,
+  [THROTTLER.USER]: true,
+  [THROTTLER.CREDENTIALS]: true,
+} as const satisfies Record<(typeof THROTTLER)[keyof typeof THROTTLER], true>;
