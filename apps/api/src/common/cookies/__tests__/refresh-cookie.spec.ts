@@ -16,6 +16,8 @@ const appConfigFor = (isProduction: boolean): ConfigType<typeof appConfig> => ({
   port: 3000,
   frontendUrl: 'http://localhost:5173',
   isProduction,
+  trustProxy: 0,
+  logLevel: undefined,
 });
 
 const jwtConfigWith = (refreshExpiry: string): ConfigType<typeof jwtConfig> => ({

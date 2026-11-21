@@ -95,7 +95,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** (developer) | `refresh-cookie.ts`: `sameSite: 'lax'` always (update the comment: same-origin proxy, ADR-0020). `common/guards/origin.guard.ts`: reads `appConfig.frontendUrl`, compares with `request.headers.origin`, throws `ForbiddenException('Invalid origin')`. `@UseGuards(OriginGuard)` on `refresh` and `logout` |
 | Review points | Exact string comparison (no `startsWith`/`includes`); missing header → 403; no session read before the guard |
 
-### - [ ] P5. `Cache-Control: no-store` and `TRUST_PROXY`
+### - [x] P5. `Cache-Control: no-store` and `TRUST_PROXY`
 
 | | |
 |---|---|
@@ -120,7 +120,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 | | |
 |---|---|
-| **Red** (agent, S5) | New `test/rate-limit.e2e-spec.ts`: 6th login (same IP + email, wrong password) → 429 with `Retry-After` and the standard error body (`requestId`, message `"Too many requests"`); `"A@x.com"` and `"a@x.com "` share the counter; 6th register from one IP → 429; with `TRUST_PROXY=0`, changing `X-Forwarded-For` does not reset the login counter |
+| **Red** (agent, S5) | New `test/rate-limit.e2e-spec.ts`: 6th login (same IP + email, wrong password) → 429 with `Retry-After` and the standard error body (`requestId`, message `"Too many requests"`); `"A@x.com"` and `"a@x.com "` share the counter; 6th register from one IP → 429; with `TRUST_PROXY=0`, changing `X-Forwarded-For` does not reset the login counter; with `TRUST_PROXY=1` (second app instance), two `X-Forwarded-For` clients get separate counters (covers the `trust proxy` branch of P5) |
 | **Green** (developer) | `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
 | Review points | Tracker uses `req.ip` only (never a raw header); counters per throttler name; `credentials` key never logged unmasked |
 
