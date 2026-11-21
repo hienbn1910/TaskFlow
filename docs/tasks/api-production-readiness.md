@@ -116,7 +116,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** | `common/throttling/credentials-key.ts` (reuses `emailSchema.safeParse`); `common/throttling/throttle.constants.ts` (limits of spec §6.1) |
 | Moved to P7 | `test/utils/throttler.ts` `resetThrottler(app)`: it needs `ThrottlerStorageService`, which exists only once P7 registers `ThrottlerModule` |
 
-### - [ ] P7. ⚠️ `AppThrottlerGuard`: login, register, refresh limits
+### - [x] P7. ⚠️ `AppThrottlerGuard`: login, register, refresh limits
 
 | | |
 |---|---|

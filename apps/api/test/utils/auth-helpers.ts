@@ -10,6 +10,7 @@ import { userResponseSchema } from '@common/types/user-response.dto';
 
 import { AppModule } from '../../src/app.module';
 import { setupApp } from '../../src/setup-app';
+import { ResettableThrottlerStorage, THROTTLER_STORAGE } from './throttler';
 
 export const AUTH_URL = '/api/v1/auth';
 export const PASSWORD = 'Secret123';
@@ -32,9 +33,15 @@ export const errorBodySchema = z.object({
   requestId: z.uuid(),
 });
 
-/** Same bootstrap as production (setupApp: prefix, cookie-parser, helmet, CORS). */
+/**
+ * Same bootstrap as production (setupApp: prefix, cookie-parser, helmet, CORS). Only the
+ * throttler storage is swapped for the resettable wrapper around the real one (utils/throttler).
+ */
 export async function createTestApp(): Promise<INestApplication<App>> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+    .overrideProvider(THROTTLER_STORAGE)
+    .useClass(ResettableThrottlerStorage)
+    .compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   setupApp(app);
   await app.init();

@@ -24,6 +24,7 @@ import {
   userBodySchema,
 } from './utils/auth-helpers';
 import { resetDb } from './utils/reset-db';
+import { resetThrottler } from './utils/throttler';
 
 /**
  * Integration tests against the real test database (postgres-test, port 5433).
@@ -40,6 +41,7 @@ describe('Auth (e2e)', () => {
 
   beforeEach(async () => {
     await resetDb(prisma);
+    resetThrottler(app);
   });
 
   afterAll(async () => {

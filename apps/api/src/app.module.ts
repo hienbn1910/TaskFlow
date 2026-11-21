@@ -1,12 +1,14 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, type ConfigType } from '@nestjs/config';
 import { APP_FILTER, APP_INTERCEPTOR, APP_PIPE } from '@nestjs/core';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
 import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
 import { generateRequestId } from '@common/logging/request-id';
+import { throttlerOptions } from '@common/throttling/throttler.options';
 import { appConfig, configLoaders, validateEnv } from '@config/index';
 import { AuthModule } from '@modules/auth/auth.module';
 import { HealthModule } from '@modules/health/health.module';
@@ -32,6 +34,8 @@ import { PrismaModule } from './prisma/prisma.module';
         },
       }),
     }),
+    // Rate limiting in memory (ADR-0031). The guard is registered in AuthModule, after JwtAuthGuard
+    ThrottlerModule.forRoot(throttlerOptions),
     PrismaModule,
     HealthModule,
     AuthModule,

@@ -22,6 +22,7 @@ import {
   userBodySchema,
 } from './utils/auth-helpers';
 import { resetDb } from './utils/reset-db';
+import { resetThrottler } from './utils/throttler';
 
 const USERS_URL = '/api/v1/users';
 const NEW_PASSWORD = 'NewSecret456';
@@ -41,6 +42,7 @@ describe('Users (e2e)', () => {
 
   beforeEach(async () => {
     await resetDb(prisma);
+    resetThrottler(app);
   });
 
   afterAll(async () => {
