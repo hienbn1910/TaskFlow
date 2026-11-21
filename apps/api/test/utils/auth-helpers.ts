@@ -29,6 +29,7 @@ export const errorBodySchema = z.object({
   message: z.string(),
   details: z.array(z.object({ field: z.string(), message: z.string() })).optional(),
   timestamp: z.string(),
+  requestId: z.uuid(),
 });
 
 /** Same bootstrap as production (setupApp: prefix, cookie-parser, helmet, CORS). */

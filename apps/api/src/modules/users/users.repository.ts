@@ -35,15 +35,28 @@ const CREDENTIALS_SELECT = { ...USER_SELECT, password: true } as const satisfies
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Checks ALL rows, soft-deleted included: `email` is unique across the whole table. */
+  /**
+   * Non-deleted Users only: `email` is unique among them (partial unique index, ADR-0022), so a
+   * soft-deleted User does not block the address. `findFirst`, not `findUnique`: Prisma still
+   * accepts `{ email }` as a unique input, but without `deletedAt: null` it may return a deleted row.
+   */
   async existsByEmail(email: string): Promise<boolean> {
-    const user = await this.prisma.user.findUnique({ where: { email }, select: { id: true } });
+    const user = await this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+      select: { id: true },
+    });
     return user !== null;
   }
 
-  /** Login: loads the password hash. Soft-deleted rows are returned too (service decides). */
+  /**
+   * Login: loads the password hash of the non-deleted User with this email (at most one, ADR-0022).
+   * A soft-deleted User is simply not found, so login answers with the same 401 as an unknown email.
+   */
   async findByEmailWithPassword(email: string): Promise<UserCredentials | null> {
-    return this.prisma.user.findUnique({ where: { email }, select: CREDENTIALS_SELECT });
+    return this.prisma.user.findFirst({
+      where: { email, deletedAt: null },
+      select: CREDENTIALS_SELECT,
+    });
   }
 
   /** Password change: loads the password hash of a user who is not soft-deleted. */

@@ -87,7 +87,9 @@ describe('Auth (e2e)', () => {
     });
 
     it('should treat emails case-insensitively', async () => {
-      await post('register').send({ ...body, email: '  Hien@Example.COM ' }).expect(201);
+      await post('register')
+        .send({ ...body, email: '  Hien@Example.COM ' })
+        .expect(201);
 
       await post('register').send(body).expect(409);
       expect((await login(app, 'hien@example.com')).status).toBe(200);
@@ -101,23 +103,38 @@ describe('Auth (e2e)', () => {
       expect(bodyOf(res, errorBodySchema).message).toBe(AUTH_ERROR.EMAIL_ALREADY_REGISTERED);
     });
 
-    it('should return 409 for the email of a soft-deleted user', async () => {
-      await post('register').send(body).expect(201);
-      await prisma.user.update({ where: { email: body.email }, data: { deletedAt: new Date() } });
+    // ADR-0022: email is unique among non-deleted Users only (replaces the M1 rule "409").
+    it('should register a new User with the email of a soft-deleted User', async () => {
+      const old = await registerUser(app, body.email);
+      await prisma.user.update({ where: { id: old.userId }, data: { deletedAt: new Date() } });
 
-      const res = await post('register').send(body).expect(409);
+      const res = await post('register').send(body).expect(201);
 
-      expect(bodyOf(res, errorBodySchema).message).toBe(AUTH_ERROR.EMAIL_ALREADY_REGISTERED);
+      expect(bodyOf(res, authBodySchema).data.user.id).not.toBe(old.userId);
+    });
+
+    // ADR-0032: uniqueness is decided by the database, not by the check before the insert.
+    it('should return 201 for one and 409 for the other when two registrations race', async () => {
+      const responses = await Promise.all([
+        post('register').send(body),
+        post('register').send(body),
+      ]);
+
+      expect(responses.map((res) => res.status).sort()).toEqual([201, 409]);
     });
 
     it('should return 400 with field details for a weak password', async () => {
-      const res = await post('register').send({ ...body, password: 'weak' }).expect(400);
+      const res = await post('register')
+        .send({ ...body, password: 'weak' })
+        .expect(400);
 
       expect(bodyOf(res, errorBodySchema).details?.map((d) => d.field)).toContain('password');
     });
 
     it('should store fullName without HTML tags', async () => {
-      await post('register').send({ ...body, fullName: '<b>Hien</b>' }).expect(201);
+      await post('register')
+        .send({ ...body, fullName: '<b>Hien</b>' })
+        .expect(201);
 
       const user = await prisma.user.findUniqueOrThrow({ where: { email: body.email } });
       expect(user.fullName).toBe('Hien');
@@ -134,6 +151,17 @@ describe('Auth (e2e)', () => {
       expect(refreshSetCookie(res)).toBeDefined();
       const user = await prisma.user.findUniqueOrThrow({ where: { email } });
       expect(user.lastLoginAt).toBeInstanceOf(Date);
+    });
+
+    it('should log in the new User when an old User with the same email was soft-deleted', async () => {
+      const old = await registerUser(app);
+      await prisma.user.update({ where: { id: old.userId }, data: { deletedAt: new Date() } });
+      const current = await registerUser(app);
+
+      const res = await login(app, current.email);
+
+      expect(res.status).toBe(200);
+      expect(bodyOf(res, authBodySchema).data.user.id).toBe(current.userId);
     });
 
     it('should return the IDENTICAL 401 for every failure case', async () => {
@@ -164,6 +192,7 @@ describe('Auth (e2e)', () => {
           error: 'UNAUTHORIZED',
           message: AUTH_ERROR.INVALID_CREDENTIALS,
           timestamp: expect.any(String),
+          requestId: expect.any(String), // differs per request; the rest is identical
         });
         expect(refreshSetCookie(res)).toBeUndefined();
       }

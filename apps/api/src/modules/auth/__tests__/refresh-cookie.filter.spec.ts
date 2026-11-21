@@ -7,6 +7,8 @@ import { AUTH_ERROR } from '@common/constants/auth.constant';
 
 import { RefreshCookieFilter } from '../filters/refresh-cookie.filter';
 
+const REQUEST_ID = '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34';
+
 /**
  * The filter only has to call RefreshCookieService.clear and then behave like the global
  * filter. The exact cookie attributes are tested with the service (common/cookies).
@@ -35,7 +37,10 @@ describe('RefreshCookieFilter', () => {
   };
 
   const hostFor = (response: ReturnType<typeof createResponse>): ExecutionContextHost =>
-    new ExecutionContextHost([{ method: 'POST', originalUrl: '/api/v1/auth/refresh' }, response]);
+    new ExecutionContextHost([
+      { method: 'POST', originalUrl: '/api/v1/auth/refresh', headers: {}, id: REQUEST_ID },
+      response,
+    ]);
 
   it('should clear the refresh cookie on the response', () => {
     const response = createResponse();
@@ -57,6 +62,7 @@ describe('RefreshCookieFilter', () => {
       error: 'UNAUTHORIZED',
       message: AUTH_ERROR.INVALID_REFRESH_TOKEN,
       timestamp: expect.any(String),
+      requestId: REQUEST_ID,
     });
   });
 });

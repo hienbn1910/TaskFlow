@@ -3,6 +3,7 @@ import type { ConfigType } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
+import { Logger } from 'nestjs-pino';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 
 import { appConfig } from '@config/index';
@@ -16,6 +17,8 @@ export const API_PREFIX = 'api/v1';
 export function setupApp(app: INestApplication): void {
   const config = app.get<ConfigType<typeof appConfig>>(appConfig.KEY);
 
+  // Nest's own logs (and the exception filter's) go through pino, with the request id attached
+  app.useLogger(app.get(Logger));
   app.setGlobalPrefix(API_PREFIX);
   app.use(helmet());
   app.use(cookieParser());

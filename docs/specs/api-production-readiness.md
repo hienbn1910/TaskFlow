@@ -58,6 +58,7 @@ Tables `users`, `refresh_tokens`: one migration, no new table. Not tenant-scoped
 ### 2.1.1 Timestamps (ADR-0023)
 - Every `DateTime` field in `schema.prisma` is declared `@db.Timestamptz(3)`: `users.last_login_at`, `deleted_at`, `created_at`, `updated_at`; `refresh_tokens.expires_at`, `created_at`.
 - The migration converts with `ALTER COLUMN … TYPE timestamptz(3) USING <col> AT TIME ZONE 'UTC'`, **not** the default conversion. The generated SQL is edited and reviewed by hand (ADR-0036).
+- **Added during P1 (Q11):** a second migration pins the database's default session time zone to UTC (`ALTER DATABASE … SET timezone TO 'UTC'`), because `@prisma/adapter-pg` sends `DateTime` parameters without an offset (ADR-0023 amended).
 
 ### 2.1.2 `users.email`
 - Type `VARCHAR(254)` (WORKFLOW.md §4). The input schema already caps the email at `MAX_EMAIL_LENGTH`, so no existing row is longer.
@@ -205,6 +206,7 @@ All three are added to `.env.example` and validated in `validateEnv`.
 - [ ] No column of the `public` schema has type `timestamp without time zone` (`information_schema` check).
 - [ ] An instant written to a `timestamptz` column reads back with the same `getTime()`.
 - [ ] The migration SQL uses `AT TIME ZONE 'UTC'` and was reviewed by hand.
+- [ ] Application database sessions run in UTC (`SHOW TIME ZONE`).
 - [ ] Registering with the email of a soft-deleted User → 201.
 - [ ] Registering with the email of a non-deleted User → 409 (unchanged).
 - [ ] Two concurrent registrations with the same email (`Promise.all`) → exactly one 201 and one 409.
