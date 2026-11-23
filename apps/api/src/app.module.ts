@@ -15,6 +15,7 @@ import { HealthModule } from '@modules/health/health.module';
 import { UsersModule } from '@modules/users/users.module';
 
 import { PrismaModule } from './prisma/prisma.module';
+import { RedisModule } from './redis/redis.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { PrismaModule } from './prisma/prisma.module';
     // Rate limiting in memory (ADR-0031). The guard is registered in AuthModule, after JwtAuthGuard
     ThrottlerModule.forRoot(throttlerOptions),
     PrismaModule,
+    RedisModule,
     HealthModule,
     AuthModule,
     UsersModule,

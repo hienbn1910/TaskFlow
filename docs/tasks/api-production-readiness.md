@@ -146,12 +146,13 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Health (2.7)
 
-### - [ ] P10. `withTimeout` and `RedisModule`
+### - [x] P10. `withTimeout` and `RedisModule`
 
 | | |
 |---|---|
-| **Red** (unit, S7) | `common/utils/__tests__/with-timeout.util.spec.ts` (Jest fake timers): resolves with the value when the promise settles first; rejects after `ms` when it does not; rejects with the original error when the promise rejects first |
-| **Green** | `common/utils/with-timeout.util.ts`; `src/redis/redis.module.ts` + `redis.constants.ts` (global `REDIS_CLIENT`, `lazyConnect`, `enableOfflineQueue: false`, `quit()` on destroy), imported in `AppModule` |
+| **Red** (unit, S7) | `common/utils/__tests__/with-timeout.util.spec.ts` (Jest fake timers): resolves with the value when the promise settles first; rejects after `ms` when it does not (not 1 ms early); rejects with the original error when the promise rejects first; clears its timer (checked by removing `clearTimeout`: the test fails) |
+| **Green** | `common/utils/with-timeout.util.ts`; `src/redis/redis.module.ts` + `redis.constants.ts` (global `REDIS_CLIENT`, `lazyConnect`, `enableOfflineQueue: false`, `maxRetriesPerRequest: 1`, error listener, `disconnect()` on shutdown: never waits, Redis is disposable), imported in `AppModule` |
+| Note | `RedisModule` has no test of its own: it is covered through `/health/ready` in P11. Full e2e suite green with it loaded (Jest exits, no open handle) |
 
 ### - [ ] P11. `GET /health/ready`
 
