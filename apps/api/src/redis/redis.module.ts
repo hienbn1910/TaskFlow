@@ -12,14 +12,18 @@ import { REDIS_CLIENT } from './redis.constants';
  * - `lazyConnect`: no connection at boot, so a missing Redis never blocks startup;
  * - `enableOfflineQueue: false`: while disconnected a command fails at once instead of waiting
  *   in a queue, so readiness answers "down" quickly;
- * - `maxRetriesPerRequest: 1`: a command is not retried for long behind a broken connection.
+ * - `maxRetriesPerRequest: 1`: a command is not retried for long behind a broken connection;
+ * - `disconnectTimeout: 100`: `disconnect()` arms a timer that only a socket `close` clears.
+ *   While reconnecting the socket is already closed, so the default 2 s timer runs out and
+ *   delays shutdown (and keeps Jest from exiting). Redis holds nothing to flush (ADR-0027).
  */
-function createRedisClient(config: ConfigType<typeof redisConfig>): Redis {
+export function createRedisClient(config: ConfigType<typeof redisConfig>): Redis {
   const logger = new Logger('Redis');
   const client = new Redis(config.url, {
     lazyConnect: true,
     enableOfflineQueue: false,
     maxRetriesPerRequest: 1,
+    disconnectTimeout: 100,
   });
   // Without a listener, ioredis prints every reconnect failure as "Unhandled error event"
   client.on('error', (error: Error) => {

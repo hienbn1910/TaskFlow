@@ -33,15 +33,27 @@ export const errorBodySchema = z.object({
   requestId: z.uuid(),
 });
 
+/** A provider replaced by a real object of the same kind (e.g. a Redis client on a dead port). */
+export interface ProviderOverride {
+  readonly token: string | symbol;
+  readonly value: unknown;
+}
+
 /**
  * Same bootstrap as production (setupApp: prefix, cookie-parser, helmet, CORS). Only the
- * throttler storage is swapped for the resettable wrapper around the real one (utils/throttler).
+ * throttler storage is swapped for the resettable wrapper around the real one (utils/throttler),
+ * plus any `overrides` a test asks for.
  */
-export async function createTestApp(): Promise<INestApplication<App>> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
+export async function createTestApp(
+  overrides: readonly ProviderOverride[] = [],
+): Promise<INestApplication<App>> {
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(THROTTLER_STORAGE)
-    .useClass(ResettableThrottlerStorage)
-    .compile();
+    .useClass(ResettableThrottlerStorage);
+  for (const { token, value } of overrides) {
+    builder.overrideProvider(token).useValue(value);
+  }
+  const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>();
   setupApp(app);
   await app.init();
@@ -91,7 +103,12 @@ export async function registerUser(
     .send({ email, password: PASSWORD, fullName: 'Hien Nguyen' })
     .expect(201);
   const { data } = bodyOf(res, authBodySchema);
-  return { email, accessToken: data.accessToken, cookie: refreshCookiePair(res), userId: data.user.id };
+  return {
+    email,
+    accessToken: data.accessToken,
+    cookie: refreshCookiePair(res),
+    userId: data.user.id,
+  };
 }
 
 export async function login(app: INestApplication<App>, email: string): Promise<Response> {

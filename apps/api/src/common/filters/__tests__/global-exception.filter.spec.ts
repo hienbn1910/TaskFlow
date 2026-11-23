@@ -4,6 +4,7 @@ import {
   HttpStatus,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import { ZodValidationException } from 'nestjs-zod';
@@ -50,6 +51,22 @@ describe('normalizeError', () => {
   it('should join array messages from HttpException', () => {
     const exception = new BadRequestException({ message: ['a is required', 'b is required'] });
     expect(normalizeError(exception).message).toBe('a is required, b is required');
+  });
+
+  it('should keep field details carried by an HttpException', () => {
+    const details = [{ field: 'redis', message: 'unreachable' }];
+    const exception = new ServiceUnavailableException({ message: 'Service not ready', details });
+
+    expect(normalizeError(exception)).toEqual({
+      statusCode: HttpStatus.SERVICE_UNAVAILABLE,
+      message: 'Service not ready',
+      details,
+    });
+  });
+
+  it('should drop details that are not a list of { field, message }', () => {
+    const exception = new BadRequestException({ message: 'Bad', details: 'internal host db:5432' });
+    expect(normalizeError(exception)).not.toHaveProperty('details');
   });
 
   it('should map Prisma P2002 to 409 and P2025 to 404', () => {

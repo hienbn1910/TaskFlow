@@ -154,13 +154,15 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** | `common/utils/with-timeout.util.ts`; `src/redis/redis.module.ts` + `redis.constants.ts` (global `REDIS_CLIENT`, `lazyConnect`, `enableOfflineQueue: false`, `maxRetriesPerRequest: 1`, error listener, `disconnect()` on shutdown: never waits, Redis is disposable), imported in `AppModule` |
 | Note | `RedisModule` has no test of its own: it is covered through `/health/ready` in P11. Full e2e suite green with it loaded (Jest exits, no open handle) |
 
-### - [ ] P11. `GET /health/ready`
+### - [x] P11. `GET /health/ready`
 
 | | |
 |---|---|
-| **Red** (S6) | New `test/health.e2e-spec.ts`: `/health/ready` → 200 `{ status: 'ok', checks: { database: 'up', redis: 'up' } }`; with `REDIS_CLIENT` overridden by a real client on an unused port → 503, standard body, `details: [{ field: 'redis', message: 'unreachable' }]`, within 3 s. `createTestApp(overrides?)` in helpers |
-| **Green** | `health.repository.ts` (`pingDatabase` with `$queryRaw\`SELECT 1\``), `HealthService.ready()`, `readiness-response.dto.ts`, `@Get('ready')` with `@ZodResponse` |
-| Also | Existing `health.service.spec.ts` / `health.controller.spec.ts` stay green |
+| **Red** (S6) | New `test/health.e2e-spec.ts`: `/health/ready` → 200 `{ status: 'ok', checks: { database: 'up', redis: 'up' } }`; with `REDIS_CLIENT` overridden by a real client (`createRedisClient`) on port 1 → 503, standard body, `details: [{ field: 'redis', message: 'unreachable' }]`, within 3 s; `/health` stays 200 meanwhile. `createTestApp(overrides?)` in helpers. Red: 404 (no route) |
+| **Red** (S7) | `global-exception.filter.spec.ts`: an HttpException's `details` are kept; `details` that are not `{ field, message }[]` are dropped |
+| **Green** | `health.repository.ts` (`pingDatabase` with `$queryRaw\`SELECT 1\``, `pingRedis` with `connect()` on first use), `readiness.service.ts` (instead of `HealthService.ready()`: liveness keeps no dependency), `ServiceNotReadyException`, `readiness-response.dto.ts`, `@Get('ready')` with `@ZodResponse`; filter `extractHttpDetails` (Zod-checked) |
+| Found | `lazyConnect` + `enableOfflineQueue: false`: the first PING fails before the socket is ready, hence `connect()` first (mutation check: removing it turns the 200 into 503). ioredis `disconnect()` while reconnecting leaves a 2 s `disconnectTimeout` timer: set to 100 ms, Jest exits cleanly |
+| Also | Existing `health.service.spec.ts` / `health.controller.spec.ts` stay green (controller spec provides a `ReadinessService` stand-in) |
 
 ---
 

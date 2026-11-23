@@ -41,12 +41,14 @@ request
 ```
 GET /health/ready
  → HealthController.ready()
- → HealthService.ready(): runs both checks in parallel, each wrapped in withTimeout(…, 3000)
+ → ReadinessService.check(): runs both checks in parallel, each wrapped in withTimeout(…, 3000)
      ├ HealthRepository.pingDatabase()  → prisma.$queryRaw`SELECT 1`
-     └ RedisHealthIndicator: client.ping()  (REDIS_CLIENT from RedisModule)
+     └ HealthRepository.pingRedis()     → connect() on first use (lazyConnect), then PING
  → all up   → { status: 'ok', checks: { database: 'up', redis: 'up' } }
- → any down → ServiceUnavailableException with details → filter → 503 standard body
+ → any down → ServiceNotReadyException (503 + details) → filter keeps valid `details` → 503 standard body
 ```
+
+Readiness lives in its own `ReadinessService`, not in `HealthService`: liveness then has no dependency at all, so `/health` cannot touch the database by construction (ADR-0019).
 
 `SELECT 1` is raw SQL in a repository, the only way Prisma can express "is the database reachable" (RULE.md §3 Raw SQL; no `workspaceId` because nothing is tenant data).
 
