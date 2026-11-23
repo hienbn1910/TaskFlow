@@ -168,14 +168,14 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Contract and wiring
 
-### - [ ] P12. `openapi:export` and contract test
+### - [x] P12. `openapi:export` and contract test
 
 | | |
 |---|---|
 | **Red 1** (unit, S7) | `openapi/__tests__/openapi-document.spec.ts`: `serializeOpenApi({ b: 1, a: [1] })` equals the literal 2-space JSON with a trailing newline |
-| **Red 2** (S8) | New `test/openapi.e2e-spec.ts`: the document built from the app equals the committed `openapi.json`; on mismatch the message says `run pnpm --filter api openapi:export`. Red: the file does not exist |
-| **Green** | `src/openapi/openapi-document.ts` (`buildOpenApiDocument`, `serializeOpenApi`); `setupSwagger` uses it; `src/scripts/export-openapi.ts`; `package.json` script; `/.prettierignore`; run the export and commit `openapi.json` |
-| Proof | Running the export twice → no diff |
+| **Red 2** (S8) | New `test/openapi.e2e-spec.ts`: the document built from the app equals the committed `openapi.json` (compared as parsed JSON: a CRLF checkout is not a change); on mismatch the message says `run pnpm --filter api openapi:export`. Red: the file does not exist |
+| **Green** | `src/openapi/openapi-document.ts` (`OPENAPI_FILE`, `buildOpenApiDocument`, `serializeOpenApi`); `setupSwagger` uses it; `src/scripts/export-openapi.ts`; `package.json` script; `/.prettierignore`; run the export and commit `openapi.json` |
+| Proof | Running the export twice → identical hash. Mutation: one changed description in `openapi.json` → the contract test fails |
 
 ### - [ ] P13. `DIRECT_DATABASE_URL`, tsconfig, wording
 

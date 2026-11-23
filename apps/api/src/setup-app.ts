@@ -1,13 +1,14 @@
 import type { INestApplication } from '@nestjs/common';
 import type { ConfigType } from '@nestjs/config';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { Express, NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
-import { cleanupOpenApiDoc } from 'nestjs-zod';
 
 import { appConfig } from '@config/index';
+
+import { buildOpenApiDocument } from './openapi/openapi-document';
 
 export const API_PREFIX = 'api/v1';
 
@@ -48,17 +49,7 @@ export function setupApp(app: INestApplication): void {
   app.enableShutdownHooks();
 }
 
+/** Swagger UI serves the same document as the committed openapi.json. */
 export function setupSwagger(app: INestApplication): void {
-  const document = new DocumentBuilder()
-    .setTitle('TaskFlow API')
-    .setDescription('Multi-tenant workspace collaboration platform')
-    .setVersion('0.1.0')
-    .addBearerAuth()
-    .addCookieAuth('refresh_token')
-    .build();
-  SwaggerModule.setup(
-    'api/docs',
-    app,
-    cleanupOpenApiDoc(SwaggerModule.createDocument(app, document)),
-  );
+  SwaggerModule.setup('api/docs', app, buildOpenApiDocument(app));
 }
