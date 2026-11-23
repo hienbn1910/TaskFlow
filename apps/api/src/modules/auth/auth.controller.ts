@@ -46,7 +46,7 @@ export class AuthController {
   @Public()
   @Post('register')
   @Throttle({ [THROTTLER.ANONYMOUS]: ROUTE_LIMITS.REGISTER_PER_IP })
-  @ZodResponse({ status: 201, type: AuthResponseDto, description: 'Account created, logged in' })
+  @ZodResponse({ status: 201, type: AuthResponseDto, description: 'User registered, logged in' })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) response: Response,

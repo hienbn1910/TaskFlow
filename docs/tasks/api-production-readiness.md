@@ -177,12 +177,13 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** | `src/openapi/openapi-document.ts` (`OPENAPI_FILE`, `buildOpenApiDocument`, `serializeOpenApi`); `setupSwagger` uses it; `src/scripts/export-openapi.ts`; `package.json` script; `/.prettierignore`; run the export and commit `openapi.json` |
 | Proof | Running the export twice → identical hash. Mutation: one changed description in `openapi.json` → the contract test fails |
 
-### - [ ] P13. `DIRECT_DATABASE_URL`, tsconfig, wording
+### - [x] P13. `DIRECT_DATABASE_URL`, tsconfig, wording
 
 | | |
 |---|---|
 | Change | `prisma7.config.ts`: `DIRECT_DATABASE_URL ?? DATABASE_URL`; `tsconfig.json`: include `prisma7.config.ts`; "account" → "User" in the 7 places under `src` (comments and Swagger descriptions); re-export `openapi.json` |
 | Test | No automated test (plan §6). Manual: `dotenv -e .env.test -- prisma migrate status` with `DIRECT_DATABASE_URL` set to the test DB and `DATABASE_URL` to a wrong URL → succeeds. `grep -ri account src` → no match outside generated code. Contract test (S8) green after the re-export |
+| Done | Manual check passed: direct URL set + pooled URL wrong → `Database schema is up to date!`; direct empty → P1001 on the pooled URL (empty counts as unset: `||`, not `??`). 8 places, not 7 (`users.service.ts` had two). Contract test went red after the wording change, green after the re-export (one-line diff) |
 
 ---
 

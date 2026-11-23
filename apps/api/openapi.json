@@ -62,7 +62,7 @@
         },
         "responses": {
           "201": {
-            "description": "Account created, logged in",
+            "description": "User registered, logged in",
             "content": {
               "application/json": {
                 "schema": {

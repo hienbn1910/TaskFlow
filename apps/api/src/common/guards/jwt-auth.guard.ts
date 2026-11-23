@@ -29,7 +29,7 @@ export function extractBearerToken(header: string | undefined): string | null {
  * access token unless marked @Public(). Secure by default: a new route without any
  * decorator is protected, not open.
  *
- * Loads the user on every request so a blocked or deleted account loses access immediately,
+ * Loads the User on every request so a blocked or deleted User loses access immediately,
  * instead of keeping it until its access token expires (up to 15 min).
  */
 @Injectable()

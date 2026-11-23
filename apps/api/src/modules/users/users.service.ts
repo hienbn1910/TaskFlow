@@ -12,7 +12,7 @@ import { canSignIn } from './user.rules';
 import { UsersRepository } from './users.repository';
 
 /**
- * The current user's own account. `userId` always comes from the access token
+ * The current User's own profile. `userId` always comes from the access token
  * (@CurrentUser), never from the URL or body, so a user can only change themselves.
  */
 @Injectable()
@@ -33,7 +33,7 @@ export class UsersService {
    */
   async changePassword(userId: string, dto: ChangePasswordDto): Promise<void> {
     const user = await this.users.findCredentialsById(userId);
-    // Same rule as the guard: the account may have been blocked since the token was issued
+    // Same rule as the guard: the User may have been blocked since the token was issued
     if (user === null || !canSignIn(user)) {
       throw new UnauthorizedException(AUTH_ERROR.UNAUTHORIZED);
     }
