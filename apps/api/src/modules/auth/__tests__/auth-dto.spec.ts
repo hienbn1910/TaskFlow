@@ -4,7 +4,11 @@ import { authResponseSchema } from '../dto/auth-response.dto';
 import { loginSchema } from '../dto/login.dto';
 import { registerSchema } from '../dto/register.dto';
 
-const VALID_REGISTER = { email: 'hien@example.com', password: 'Secret123', fullName: 'Hien Nguyen' };
+const VALID_REGISTER = {
+  email: 'hien@example.com',
+  password: 'Secret123',
+  fullName: 'Hien Nguyen',
+};
 
 /** Error messages for one field, so each test can check exactly which rule failed. */
 const messagesFor = (schema: z.ZodType, input: unknown, field: string): string[] => {

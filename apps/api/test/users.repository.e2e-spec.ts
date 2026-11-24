@@ -84,7 +84,9 @@ describe('UsersRepository writes (integration)', () => {
       const userId = await createUser('me@example.com', 2);
       await softDelete(userId);
 
-      await expect(repository.updatePasswordAndRevokeSessions(userId, 'new-hash')).rejects.toThrow();
+      await expect(
+        repository.updatePasswordAndRevokeSessions(userId, 'new-hash'),
+      ).rejects.toThrow();
 
       const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
       expect(user.password).toBe('old-hash');

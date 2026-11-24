@@ -49,7 +49,12 @@ describe('users DTO schemas', () => {
     });
 
     it('should strip email, isActive and password next to a valid field', () => {
-      const input = { fullName: 'Hien', email: 'evil@example.com', isActive: false, password: 'X1' };
+      const input = {
+        fullName: 'Hien',
+        email: 'evil@example.com',
+        isActive: false,
+        password: 'X1',
+      };
 
       expect(updateProfileSchema.parse(input)).toEqual({ fullName: 'Hien' });
     });
@@ -104,22 +109,31 @@ describe('users DTO schemas', () => {
     });
 
     it('should treat passwords differing only by case or spaces as different', () => {
-      expect(changePasswordSchema.safeParse({ ...VALID_CHANGE, newPassword: 'OLDSECRET1' }).success)
-        .toBe(true);
-      expect(changePasswordSchema.safeParse({ ...VALID_CHANGE, newPassword: ' OldSecret1' }).success)
-        .toBe(true);
+      expect(
+        changePasswordSchema.safeParse({ ...VALID_CHANGE, newPassword: 'OLDSECRET1' }).success,
+      ).toBe(true);
+      expect(
+        changePasswordSchema.safeParse({ ...VALID_CHANGE, newPassword: ' OldSecret1' }).success,
+      ).toBe(true);
     });
 
     it('should reject an empty or missing currentPassword', () => {
-      expect(messagesFor(changePasswordSchema, { ...VALID_CHANGE, currentPassword: '' }, 'currentPassword'))
-        .toEqual(['Password is required']);
-      expect(messagesFor(changePasswordSchema, { newPassword: 'NewSecret2' }, 'currentPassword'))
-        .not.toEqual([]);
+      expect(
+        messagesFor(
+          changePasswordSchema,
+          { ...VALID_CHANGE, currentPassword: '' },
+          'currentPassword',
+        ),
+      ).toEqual(['Password is required']);
+      expect(
+        messagesFor(changePasswordSchema, { newPassword: 'NewSecret2' }, 'currentPassword'),
+      ).not.toEqual([]);
     });
 
     it('should accept a weak currentPassword (no strength rule: the hash decides)', () => {
-      expect(changePasswordSchema.safeParse({ ...VALID_CHANGE, currentPassword: 'abc' }).success)
-        .toBe(true);
+      expect(
+        changePasswordSchema.safeParse({ ...VALID_CHANGE, currentPassword: 'abc' }).success,
+      ).toBe(true);
     });
 
     it('should reject a currentPassword longer than 72 bytes', () => {

@@ -264,11 +264,14 @@ describe('AuthService', () => {
       expect(refreshTokens.deleteAllForUser).toHaveBeenCalledWith(USER.id);
     });
 
-    it.each([undefined, ''])('should throw 401 without touching the DB for token %p', async (token) => {
-      await expect(service.refresh(token)).rejects.toThrow(AUTH_ERROR.INVALID_REFRESH_TOKEN);
-      expect(tokens.verifyRefresh).not.toHaveBeenCalled();
-      expect(users.findActiveById).not.toHaveBeenCalled();
-    });
+    it.each([undefined, ''])(
+      'should throw 401 without touching the DB for token %p',
+      async (token) => {
+        await expect(service.refresh(token)).rejects.toThrow(AUTH_ERROR.INVALID_REFRESH_TOKEN);
+        expect(tokens.verifyRefresh).not.toHaveBeenCalled();
+        expect(users.findActiveById).not.toHaveBeenCalled();
+      },
+    );
 
     it('should propagate the 401 of an invalid JWT without touching the DB', async () => {
       tokens.verifyRefresh.mockRejectedValue(

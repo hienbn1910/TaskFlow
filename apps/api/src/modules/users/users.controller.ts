@@ -45,7 +45,9 @@ export class UsersController {
   // A stolen access token must not allow guessing the current password (ADR-0031)
   @Throttle({ [THROTTLER.USER]: ROUTE_LIMITS.CHANGE_PASSWORD_PER_USER })
   @HttpCode(200)
-  @ApiOkResponse({ description: 'Password changed, all sessions revoked, cookie cleared (data: null)' })
+  @ApiOkResponse({
+    description: 'Password changed, all sessions revoked, cookie cleared (data: null)',
+  })
   async changePassword(
     @CurrentUser() user: AuthUser,
     @Body() dto: ChangePasswordDto,

@@ -47,9 +47,12 @@ describe('password.util', () => {
   });
 
   describe('verifyAgainstDummy', () => {
-    it.each(['', PASSWORD, 'anything-at-all'])('should always return false for "%s"', async (input) => {
-      await expect(verifyAgainstDummy(input)).resolves.toBe(false);
-    });
+    it.each(['', PASSWORD, 'anything-at-all'])(
+      'should always return false for "%s"',
+      async (input) => {
+        await expect(verifyAgainstDummy(input)).resolves.toBe(false);
+      },
+    );
 
     it('should use the same cost as real hashes, so timing matches', () => {
       expect(getRounds(DUMMY_HASH)).toBe(BCRYPT_SALT_ROUNDS);

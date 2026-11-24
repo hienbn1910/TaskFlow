@@ -17,7 +17,8 @@ const config: ConfigType<typeof jwtConfig> = {
   refreshExpiry: '7d',
 };
 
-const base64url = (value: object): string => Buffer.from(JSON.stringify(value)).toString('base64url');
+const base64url = (value: object): string =>
+  Buffer.from(JSON.stringify(value)).toString('base64url');
 
 describe('TokenService', () => {
   // Real JwtService: these tests check actual signing/verification, not mocks
@@ -48,7 +49,10 @@ describe('TokenService', () => {
     });
 
     it('should be unique even for the same user in the same second', async () => {
-      const [first, second] = [await service.signRefresh(USER_ID), await service.signRefresh(USER_ID)];
+      const [first, second] = [
+        await service.signRefresh(USER_ID),
+        await service.signRefresh(USER_ID),
+      ];
 
       expect(first).not.toBe(second);
     });

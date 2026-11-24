@@ -67,7 +67,9 @@ describe('RefreshTokenRepository.rotate (integration)', () => {
     });
 
     expect(rotated).toBe(false);
-    const hashes = (await prisma.refreshToken.findMany({ where: { userId } })).map((t) => t.tokenHash);
+    const hashes = (await prisma.refreshToken.findMany({ where: { userId } })).map(
+      (t) => t.tokenHash,
+    );
     expect(hashes).toEqual([sha256Hex('other')]);
   });
 });
