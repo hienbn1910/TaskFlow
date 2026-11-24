@@ -88,4 +88,4 @@ Grouped by the system design area they answer. The numbers they rely on are in W
 
 | ADR | Title | Status |
 |---|---|---|
-| [0039](0039-test-first-at-agreed-seams.md) | Test first, at seams agreed in the plan | Accepted |
+| [0039](0039-test-first-at-agreed-seams.md) | Test first, at seams agreed in the plan | Accepted, amended in M2 |

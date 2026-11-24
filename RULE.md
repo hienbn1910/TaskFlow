@@ -32,7 +32,7 @@ Development is test-first (ADR-0039). The agent skills used at each step are lis
 ### Step 3: Task Decomposition (by AI Agent)
 - Break the feature into small vertical slices, each one behaviour that a test can show (one commit each).
 - Order tasks by dependency (Schema → the endpoint or logic it serves → Frontend). Each task names its test first, then the code.
-- Mark the important parts ⚠️: for those, the agent writes the failing test and the developer writes the code (ADR-0039).
+- Mark the important parts ⚠️: for those, the agent writes the failing test and the code, explains them, and stops for the developer's review (ADR-0039).
 - Write the tasks to `docs/tasks/<branch>.md`.
 ### Step 4: Red — write a failing test
 - Write **one** test for the next behaviour, at a seam approved in the plan (§7, skill `tdd`).
