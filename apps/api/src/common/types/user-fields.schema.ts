@@ -13,7 +13,7 @@ const MAX_FULL_NAME_LENGTH = 100; // matches users.full_name VARCHAR(100)
 
 /**
  * Trim + lowercase BEFORE validating, so " User@Example.COM " and "user@example.com"
- * are the same account (spec §2.1). Every lookup and insert receives the normalized value.
+ * are the same User (spec §2.1). Every lookup and insert receives the normalized value.
  */
 export const emailSchema = z.string().trim().toLowerCase().pipe(z.email().max(MAX_EMAIL_LENGTH));
 
@@ -41,7 +41,7 @@ export const newPasswordSchema = z
 /**
  * A password being CHECKED against the stored hash (login, current password): no strength
  * rule. The hash decides, not the policy. At login, a policy error would also reveal the
- * rules without telling whether the account exists.
+ * rules without telling whether the User exists.
  */
 export const passwordInputSchema = z
   .string()

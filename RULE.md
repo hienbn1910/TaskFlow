@@ -32,7 +32,7 @@ Development is test-first (ADR-0039). The agent skills used at each step are lis
 ### Step 3: Task Decomposition (by AI Agent)
 - Break the feature into small vertical slices, each one behaviour that a test can show (one commit each).
 - Order tasks by dependency (Schema → the endpoint or logic it serves → Frontend). Each task names its test first, then the code.
-- Mark the important parts ⚠️: for those, the agent writes the failing test and the developer writes the code (ADR-0039).
+- Mark the important parts ⚠️: for those, the agent writes the failing test and the code, explains them, and stops for the developer's review (ADR-0039).
 - Write the tasks to `docs/tasks/<branch>.md`.
 ### Step 4: Red — write a failing test
 - Write **one** test for the next behaviour, at a seam approved in the plan (§7, skill `tdd`).
@@ -82,6 +82,8 @@ src/
 │   ├── filters/               # Global exception filter (HTTP); WS exception filter
 │   ├── guards/                # JwtAuthGuard, WorkspaceGuard, OriginGuard
 │   ├── interceptors/          # Response envelope, logging context
+│   ├── logging/               # pino-http options, request id (ADR-0035)
+│   ├── throttling/            # Rate limit table, named throttlers, credentials key (ADR-0031)
 │   ├── types/                 # Shared types, schemas and DTOs used by 2+ modules
 │   └── utils/                 # Pure helper functions (no side effects)
 ├── config/                    # Zod-validated env config (app, database, redis, jwt, …)
@@ -95,10 +97,14 @@ src/
 │   │   ├── <feature>.module.ts
 │   │   ├── dto/               # Request/Response DTOs with Zod schemas
 │   │   ├── entities/          # Our own types (NOT raw Prisma types)
+│   │   ├── exceptions/        # Module-specific HttpException subclasses, if any
 │   │   └── __tests__/
 │   ├── realtime/              # Socket.io gateway, rooms, presence, event names (ADR-0025)
 │   └── jobs/                  # BullMQ queues, processors, hourly tick (ADR-0027)
+├── openapi/                   # buildOpenApiDocument + serializeOpenApi: Swagger, export, contract test (ADR-0033)
 ├── prisma/                    # PrismaService + PrismaModule only
+├── redis/                     # Global REDIS_CLIENT (ioredis); Redis is disposable (ADR-0027)
+├── scripts/                   # One-off CLI entry points run from dist/ (openapi:export)
 ├── setup-app.ts               # HTTP setup shared by main.ts and E2E tests
 ├── app.module.ts
 └── main.ts

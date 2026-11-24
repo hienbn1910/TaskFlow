@@ -22,6 +22,7 @@ import {
   userBodySchema,
 } from './utils/auth-helpers';
 import { resetDb } from './utils/reset-db';
+import { resetThrottler } from './utils/throttler';
 
 const USERS_URL = '/api/v1/users';
 const NEW_PASSWORD = 'NewSecret456';
@@ -41,6 +42,7 @@ describe('Users (e2e)', () => {
 
   beforeEach(async () => {
     await resetDb(prisma);
+    resetThrottler(app);
   });
 
   afterAll(async () => {
@@ -58,7 +60,7 @@ describe('Users (e2e)', () => {
     expect((await patch(path, body, accessToken)).status).toBe(200);
   };
 
-  const loginWith =async (email: string, password: string): Promise<Response> =>
+  const loginWith = async (email: string, password: string): Promise<Response> =>
     request(app.getHttpServer()).post(`${AUTH_URL}/login`).send({ email, password });
 
   const storedUser = async (id: string) => prisma.user.findUniqueOrThrow({ where: { id } });
@@ -119,7 +121,12 @@ describe('Users (e2e)', () => {
     it('should ignore email, isActive and password: stored values unchanged', async () => {
       const { accessToken, userId } = await registerUser(app);
       const before = await storedUser(userId);
-      const body = { fullName: 'New Name', email: 'evil@example.com', isActive: false, password: 'Hacked123' };
+      const body = {
+        fullName: 'New Name',
+        email: 'evil@example.com',
+        isActive: false,
+        password: 'Hacked123',
+      };
 
       await patchOk('profile', body, accessToken);
 
@@ -202,7 +209,11 @@ describe('Users (e2e)', () => {
     it('should reject a weak new password with 400 on newPassword', async () => {
       const { accessToken } = await registerUser(app);
 
-      const res = await patch('password', { currentPassword: PASSWORD, newPassword: 'weak' }, accessToken);
+      const res = await patch(
+        'password',
+        { currentPassword: PASSWORD, newPassword: 'weak' },
+        accessToken,
+      );
 
       expect(res.status).toBe(400);
       expect(fieldsOf(res)).toContain('newPassword');
@@ -211,7 +222,11 @@ describe('Users (e2e)', () => {
     it('should reject a new password equal to the current one with 400 on newPassword', async () => {
       const { accessToken } = await registerUser(app);
 
-      const res = await patch('password', { currentPassword: PASSWORD, newPassword: PASSWORD }, accessToken);
+      const res = await patch(
+        'password',
+        { currentPassword: PASSWORD, newPassword: PASSWORD },
+        accessToken,
+      );
 
       expect(res.status).toBe(400);
       expect(bodyOf(res, errorBodySchema).details).toEqual([

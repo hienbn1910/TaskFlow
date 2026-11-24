@@ -87,7 +87,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Red 2** (S4) | New `test/http-hardening.e2e-spec.ts`: every response has a UUID `X-Request-Id`; an incoming UUID is echoed; an error body has `requestId` equal to the header. `errorBodySchema` in helpers gains `requestId` |
 | **Green 2** | `LoggerModule.forRootAsync` in `AppModule` (minimal options: `genReqId`, sets header); `GlobalExceptionFilter` adds `request.id`; `ApiErrorResponse.requestId`; `setupApp`: `app.useLogger(app.get(Logger))`; `main.ts`: `bufferLogs: true`. Filter logs through the pino logger |
 
-### - [ ] P4. ⚠️ Cookie `SameSite=Lax` and `OriginGuard`
+### - [x] P4. ⚠️ Cookie `SameSite=Lax` and `OriginGuard`
 
 | | |
 |---|---|
@@ -95,7 +95,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 | **Green** (developer) | `refresh-cookie.ts`: `sameSite: 'lax'` always (update the comment: same-origin proxy, ADR-0020). `common/guards/origin.guard.ts`: reads `appConfig.frontendUrl`, compares with `request.headers.origin`, throws `ForbiddenException('Invalid origin')`. `@UseGuards(OriginGuard)` on `refresh` and `logout` |
 | Review points | Exact string comparison (no `startsWith`/`includes`); missing header → 403; no session read before the guard |
 
-### - [ ] P5. `Cache-Control: no-store` and `TRUST_PROXY`
+### - [x] P5. `Cache-Control: no-store` and `TRUST_PROXY`
 
 | | |
 |---|---|
@@ -108,23 +108,23 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Rate limiting (2.5)
 
-### - [ ] P6. `credentialsKey` and `resetThrottler`
+### - [x] P6. `credentialsKey` and `resetThrottler`
 
 | | |
 |---|---|
 | **Red** (unit, S7) | `common/throttling/__tests__/credentials-key.spec.ts`: `("1.2.3.4", { email: " A@X.com " })` → `"1.2.3.4:a@x.com"`; missing / invalid email / non-object body → `undefined` |
 | **Green** | `common/throttling/credentials-key.ts` (reuses `emailSchema.safeParse`); `common/throttling/throttle.constants.ts` (limits of spec §6.1) |
-| Also | `test/utils/throttler.ts`: `resetThrottler(app)`; added to `beforeEach` of every e2e file (no effect yet; ready for P7) |
+| Moved to P7 | `test/utils/throttler.ts` `resetThrottler(app)`: it needs `ThrottlerStorageService`, which exists only once P7 registers `ThrottlerModule` |
 
-### - [ ] P7. ⚠️ `AppThrottlerGuard`: login, register, refresh limits
+### - [x] P7. ⚠️ `AppThrottlerGuard`: login, register, refresh limits
 
 | | |
 |---|---|
-| **Red** (agent, S5) | New `test/rate-limit.e2e-spec.ts`: 6th login (same IP + email, wrong password) → 429 with `Retry-After` and the standard error body (`requestId`, message `"Too many requests"`); `"A@x.com"` and `"a@x.com "` share the counter; 6th register from one IP → 429; with `TRUST_PROXY=0`, changing `X-Forwarded-For` does not reset the login counter |
-| **Green** (developer) | `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
+| **Red** (agent, S5) | New `test/rate-limit.e2e-spec.ts`: 6th login (same IP + email, wrong password) → 429 with `Retry-After` and the standard error body (`requestId`, message `"Too many requests"`); `"A@x.com"` and `"a@x.com "` share the counter; 6th register from one IP → 429; with `TRUST_PROXY=0`, changing `X-Forwarded-For` does not reset the login counter; with `TRUST_PROXY=1` (second app instance), two `X-Forwarded-For` clients get separate counters (covers the `trust proxy` branch of P5) |
+| **Green** (developer) | `test/utils/throttler.ts` `resetThrottler(app)` (clears `ThrottlerStorageService.storage`) in `beforeEach` of every e2e file; `ThrottlerModule.forRootAsync` in `AppModule` with named throttlers `anonymous`, `credentials` (plan §3.1); `common/guards/app-throttler.guard.ts`: `getTracker` per throttler, `credentials` skipped unless the route enables it, `Retry-After` set; registered in `AuthModule` right after `JwtAuthGuard`; `@Throttle` on login / register / refresh |
 | Review points | Tracker uses `req.ip` only (never a raw header); counters per throttler name; `credentials` key never logged unmasked |
 
-### - [ ] P8. Per-User limits, password limit, health exempt
+### - [x] P8. Per-User limits, password limit, health exempt
 
 | | |
 |---|---|
@@ -135,7 +135,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Logs (2.6)
 
-### - [ ] P9. pino options: levels, redact, pretty in dev
+### - [x] P9. pino options: levels, redact, pretty in dev
 
 | | |
 |---|---|
@@ -146,40 +146,44 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Health (2.7)
 
-### - [ ] P10. `withTimeout` and `RedisModule`
+### - [x] P10. `withTimeout` and `RedisModule`
 
 | | |
 |---|---|
-| **Red** (unit, S7) | `common/utils/__tests__/with-timeout.util.spec.ts` (Jest fake timers): resolves with the value when the promise settles first; rejects after `ms` when it does not; rejects with the original error when the promise rejects first |
-| **Green** | `common/utils/with-timeout.util.ts`; `src/redis/redis.module.ts` + `redis.constants.ts` (global `REDIS_CLIENT`, `lazyConnect`, `enableOfflineQueue: false`, `quit()` on destroy), imported in `AppModule` |
+| **Red** (unit, S7) | `common/utils/__tests__/with-timeout.util.spec.ts` (Jest fake timers): resolves with the value when the promise settles first; rejects after `ms` when it does not (not 1 ms early); rejects with the original error when the promise rejects first; clears its timer (checked by removing `clearTimeout`: the test fails) |
+| **Green** | `common/utils/with-timeout.util.ts`; `src/redis/redis.module.ts` + `redis.constants.ts` (global `REDIS_CLIENT`, `lazyConnect`, `enableOfflineQueue: false`, `maxRetriesPerRequest: 1`, error listener, `disconnect()` on shutdown: never waits, Redis is disposable), imported in `AppModule` |
+| Note | `RedisModule` has no test of its own: it is covered through `/health/ready` in P11. Full e2e suite green with it loaded (Jest exits, no open handle) |
 
-### - [ ] P11. `GET /health/ready`
+### - [x] P11. `GET /health/ready`
 
 | | |
 |---|---|
-| **Red** (S6) | New `test/health.e2e-spec.ts`: `/health/ready` → 200 `{ status: 'ok', checks: { database: 'up', redis: 'up' } }`; with `REDIS_CLIENT` overridden by a real client on an unused port → 503, standard body, `details: [{ field: 'redis', message: 'unreachable' }]`, within 3 s. `createTestApp(overrides?)` in helpers |
-| **Green** | `health.repository.ts` (`pingDatabase` with `$queryRaw\`SELECT 1\``), `HealthService.ready()`, `readiness-response.dto.ts`, `@Get('ready')` with `@ZodResponse` |
-| Also | Existing `health.service.spec.ts` / `health.controller.spec.ts` stay green |
+| **Red** (S6) | New `test/health.e2e-spec.ts`: `/health/ready` → 200 `{ status: 'ok', checks: { database: 'up', redis: 'up' } }`; with `REDIS_CLIENT` overridden by a real client (`createRedisClient`) on port 1 → 503, standard body, `details: [{ field: 'redis', message: 'unreachable' }]`, within 3 s; `/health` stays 200 meanwhile. `createTestApp(overrides?)` in helpers. Red: 404 (no route) |
+| **Red** (S7) | `global-exception.filter.spec.ts`: an HttpException's `details` are kept; `details` that are not `{ field, message }[]` are dropped |
+| **Green** | `health.repository.ts` (`pingDatabase` with `$queryRaw\`SELECT 1\``, `pingRedis` with `connect()` on first use), `readiness.service.ts` (instead of `HealthService.ready()`: liveness keeps no dependency), `ServiceNotReadyException`, `readiness-response.dto.ts`, `@Get('ready')` with `@ZodResponse`; filter `extractHttpDetails` (Zod-checked) |
+| Found | `lazyConnect` + `enableOfflineQueue: false`: the first PING fails before the socket is ready, hence `connect()` first (mutation check: removing it turns the 200 into 503). ioredis `disconnect()` while reconnecting leaves a 2 s `disconnectTimeout` timer: set to 100 ms, Jest exits cleanly |
+| Also | Existing `health.service.spec.ts` / `health.controller.spec.ts` stay green (controller spec provides a `ReadinessService` stand-in) |
 
 ---
 
 ## Contract and wiring
 
-### - [ ] P12. `openapi:export` and contract test
+### - [x] P12. `openapi:export` and contract test
 
 | | |
 |---|---|
 | **Red 1** (unit, S7) | `openapi/__tests__/openapi-document.spec.ts`: `serializeOpenApi({ b: 1, a: [1] })` equals the literal 2-space JSON with a trailing newline |
-| **Red 2** (S8) | New `test/openapi.e2e-spec.ts`: the document built from the app equals the committed `openapi.json`; on mismatch the message says `run pnpm --filter api openapi:export`. Red: the file does not exist |
-| **Green** | `src/openapi/openapi-document.ts` (`buildOpenApiDocument`, `serializeOpenApi`); `setupSwagger` uses it; `src/scripts/export-openapi.ts`; `package.json` script; `/.prettierignore`; run the export and commit `openapi.json` |
-| Proof | Running the export twice → no diff |
+| **Red 2** (S8) | New `test/openapi.e2e-spec.ts`: the document built from the app equals the committed `openapi.json` (compared as parsed JSON: a CRLF checkout is not a change); on mismatch the message says `run pnpm --filter api openapi:export`. Red: the file does not exist |
+| **Green** | `src/openapi/openapi-document.ts` (`OPENAPI_FILE`, `buildOpenApiDocument`, `serializeOpenApi`); `setupSwagger` uses it; `src/scripts/export-openapi.ts`; `package.json` script; `/.prettierignore`; run the export and commit `openapi.json` |
+| Proof | Running the export twice → identical hash. Mutation: one changed description in `openapi.json` → the contract test fails |
 
-### - [ ] P13. `DIRECT_DATABASE_URL`, tsconfig, wording
+### - [x] P13. `DIRECT_DATABASE_URL`, tsconfig, wording
 
 | | |
 |---|---|
 | Change | `prisma7.config.ts`: `DIRECT_DATABASE_URL ?? DATABASE_URL`; `tsconfig.json`: include `prisma7.config.ts`; "account" → "User" in the 7 places under `src` (comments and Swagger descriptions); re-export `openapi.json` |
 | Test | No automated test (plan §6). Manual: `dotenv -e .env.test -- prisma migrate status` with `DIRECT_DATABASE_URL` set to the test DB and `DATABASE_URL` to a wrong URL → succeeds. `grep -ri account src` → no match outside generated code. Contract test (S8) green after the re-export |
+| Done | Manual check passed: direct URL set + pooled URL wrong → `Database schema is up to date!`; direct empty → P1001 on the pooled URL (empty counts as unset: `||`, not `??`). 8 places, not 7 (`users.service.ts` had two). Contract test went red after the wording change, green after the re-export (one-line diff) |
 
 ---
 

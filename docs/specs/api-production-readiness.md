@@ -92,6 +92,7 @@ A partial index is not a full unique key, so `findUnique({ where: { email } })` 
 - `Origin` header equal to `FRONTEND_URL` → the request continues.
 - `Origin` different **or missing** → `403`, standard error body, message `"Invalid origin"`. No `Referer` fallback.
 - Runs before the handler: a rejected request does not read, rotate or delete any session.
+- The refresh-cookie filter does not clear the cookie on this 403 either (`InvalidOriginException`): otherwise a cross-site POST could log the User out (decided in the branch review).
 - Consequence accepted: calling these routes from Swagger UI (`localhost:3000`) or curl without `Origin` gets 403.
 
 ---
@@ -127,6 +128,7 @@ Set on **every** response: success, error (including 404 for unknown routes and 
 ### 6.2 Rules
 - **Normalized email:** the login key uses the email trimmed and lowercased exactly like `emailSchema`, so `A@x.com ` and `a@x.com` share one counter. If the body has no usable email, only the IP limit applies.
 - **Order:** the per-User limits run after `JwtAuthGuard`, so the User id is known. Anonymous requests are keyed by IP.
+- **Known gap (accepted, revisit in M7):** a request to a protected route without a valid token gets 401 from `JwtAuthGuard` before any throttler counts it. Guessing a token is not feasible (signed JWT) and the 401 costs one signature check, no database read.
 - **Exempt:** `GET /health` and `GET /health/ready` (`@SkipThrottle`). Render's health check calls liveness often from one internal IP, and a 429 there would make Render restart the service.
 - **Response when exceeded:** `429`, header `Retry-After` (seconds), standard error body (Decision #1), message `"Too many requests"`.
 - Counters reset on restart: accepted (ADR-0031).
@@ -140,7 +142,7 @@ Set on **every** response: success, error (including 404 for unknown routes and 
 ## 7. Observability and Health (2.6, 2.7)
 
 ### 7.1 Logs
-- `nestjs-pino`. One line per request: method, route, status, `responseTime`, `requestId`, `userId` (when authenticated). (`workspaceId` from M3.)
+- `nestjs-pino`. One line per request: method, URL, route (template, e.g. `/api/v1/users/:id`; unknown URLs log Nest's catch-all `/api/v1{/*splat}`), status, `responseTime`, `requestId`, `userId` (when authenticated). (`workspaceId` from M3.)
 - Format and level by environment:
 
 | Env | Format | Default level |
@@ -203,46 +205,46 @@ All three are added to `.env.example` and validated in `validateEnv`.
 ## 11. Acceptance Criteria
 
 **Migration (2.1)**
-- [ ] No column of the `public` schema has type `timestamp without time zone` (`information_schema` check).
-- [ ] An instant written to a `timestamptz` column reads back with the same `getTime()`.
-- [ ] The migration SQL uses `AT TIME ZONE 'UTC'` and was reviewed by hand.
-- [ ] Application database sessions run in UTC (`SHOW TIME ZONE`).
-- [ ] Registering with the email of a soft-deleted User → 201.
-- [ ] Registering with the email of a non-deleted User → 409 (unchanged).
-- [ ] Two concurrent registrations with the same email (`Promise.all`) → exactly one 201 and one 409.
-- [ ] Login with the email of a soft-deleted User whose address was re-registered logs in the new User.
+- [x] No column of the `public` schema has type `timestamp without time zone` (`information_schema` check).
+- [x] An instant written to a `timestamptz` column reads back with the same `getTime()`.
+- [x] The migration SQL uses `AT TIME ZONE 'UTC'` and was reviewed by hand.
+- [x] Application database sessions run in UTC (`SHOW TIME ZONE`).
+- [x] Registering with the email of a soft-deleted User → 201.
+- [x] Registering with the email of a non-deleted User → 409 (unchanged).
+- [x] Two concurrent registrations with the same email (`Promise.all`) → exactly one 201 and one 409.
+- [x] Login with the email of a soft-deleted User whose address was re-registered logs in the new User.
 
 **Database URLs (2.2)**
-- [ ] `prisma migrate` uses `DIRECT_DATABASE_URL` when set, `DATABASE_URL` otherwise.
+- [x] `prisma migrate` uses `DIRECT_DATABASE_URL` when set, `DATABASE_URL` otherwise.
 
 **Cookie and Origin (2.3)**
-- [ ] `Set-Cookie` of register / login / refresh has `SameSite=Lax`, `HttpOnly`, `Path=/api/v1/auth`.
-- [ ] `/auth/refresh` and `/auth/logout` with `Origin` = `FRONTEND_URL` → unchanged behaviour.
-- [ ] With another `Origin` or without `Origin` → 403, and the session row still exists.
+- [x] `Set-Cookie` of register / login / refresh has `SameSite=Lax`, `HttpOnly`, `Path=/api/v1/auth`.
+- [x] `/auth/refresh` and `/auth/logout` with `Origin` = `FRONTEND_URL` → unchanged behaviour.
+- [x] With another `Origin` or without `Origin` → 403, and the session row still exists.
 
 **Proxy and caching (2.4)**
-- [ ] Every response (200, 4xx, 5xx, unknown route) has `Cache-Control: no-store`.
-- [ ] Invalid `TRUST_PROXY` (negative, not a number) → the app refuses to start.
+- [x] Every response (200, 4xx, 5xx, unknown route) has `Cache-Control: no-store`.
+- [x] Invalid `TRUST_PROXY` (negative, not a number) → the app refuses to start.
 
 **Rate limiting (2.5)**
-- [ ] 6th login within a minute for the same IP + email → 429 with `Retry-After` and the standard error body.
-- [ ] The same email with different case / spaces counts against the same limit.
-- [ ] 6th registration within an hour from one IP → 429.
-- [ ] 6th `PATCH /users/password` within 15 min for one User → 429.
-- [ ] `/health` is never rate limited.
+- [x] 6th login within a minute for the same IP + email → 429 with `Retry-After` and the standard error body.
+- [x] The same email with different case / spaces counts against the same limit.
+- [x] 6th registration within an hour from one IP → 429.
+- [x] 6th `PATCH /users/password` within 15 min for one User → 429.
+- [x] `/health` is never rate limited.
 
 **Observability and health (2.6, 2.7)**
-- [ ] Every response has an `X-Request-Id` header holding a UUID.
-- [ ] An incoming UUID `X-Request-Id` is echoed back; a non-UUID value is replaced.
-- [ ] Every error body contains `requestId`, equal to the header.
-- [ ] `/health` returns 200 without querying the database or Redis.
-- [ ] `/health/ready` → 200 with `database: 'up'`, `redis: 'up'` when both are reachable.
-- [ ] `/health/ready` → 503 with a `details` entry for `redis` when Redis is unreachable.
+- [x] Every response has an `X-Request-Id` header holding a UUID.
+- [x] An incoming UUID `X-Request-Id` is echoed back; a non-UUID value is replaced.
+- [x] Every error body contains `requestId`, equal to the header.
+- [x] `/health` returns 200 without querying the database or Redis.
+- [x] `/health/ready` → 200 with `database: 'up'`, `redis: 'up'` when both are reachable.
+- [x] `/health/ready` → 503 with a `details` entry for `redis` when Redis is unreachable.
 
 **OpenAPI (2.8)**
-- [ ] `openapi:export` writes `apps/api/openapi.json`; running it twice produces no diff.
-- [ ] The E2E contract test fails when the committed file differs from the app.
+- [x] `openapi:export` writes `apps/api/openapi.json`; running it twice produces no diff.
+- [x] The E2E contract test fails when the committed file differs from the app.
 
 **Quality**
-- [ ] No "account" left in `apps/api/src` comments or Swagger descriptions.
-- [ ] `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e` all pass.
+- [x] No "account" left in `apps/api/src` comments or Swagger descriptions.
+- [x] `pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e` all pass.

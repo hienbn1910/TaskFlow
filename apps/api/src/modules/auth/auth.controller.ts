@@ -1,11 +1,25 @@
-import { Body, Controller, Get, HttpCode, Post, Req, Res, UseFilters } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UseFilters,
+  UseGuards,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiCookieAuth, ApiOkResponse, ApiTags } from '@nestjs/swagger';
+import { Throttle } from '@nestjs/throttler';
 import type { Request, Response } from 'express';
 import { ZodResponse } from 'nestjs-zod';
 
 import { RefreshCookieService } from '@common/cookies/refresh-cookie.service';
 import { CurrentUser } from '@common/decorators/current-user.decorator';
 import { Public } from '@common/decorators/public.decorator';
+import { ThrottleCredentials } from '@common/decorators/throttle-credentials.decorator';
+import { OriginGuard } from '@common/guards/origin.guard';
+import { ROUTE_LIMITS, THROTTLER } from '@common/throttling/throttle.constants';
 import type { AuthUser } from '@common/types/auth-user.type';
 import { type UserResponse, UserResponseDto } from '@common/types/user-response.dto';
 
@@ -31,7 +45,8 @@ export class AuthController {
 
   @Public()
   @Post('register')
-  @ZodResponse({ status: 201, type: AuthResponseDto, description: 'Account created, logged in' })
+  @Throttle({ [THROTTLER.ANONYMOUS]: ROUTE_LIMITS.REGISTER_PER_IP })
+  @ZodResponse({ status: 201, type: AuthResponseDto, description: 'User registered, logged in' })
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) response: Response,
@@ -41,6 +56,9 @@ export class AuthController {
 
   @Public()
   @Post('login')
+  // 20 / min per IP, plus 5 / min per IP + email (ADR-0031)
+  @Throttle({ [THROTTLER.ANONYMOUS]: ROUTE_LIMITS.LOGIN_PER_IP })
+  @ThrottleCredentials()
   @ZodResponse({ status: 200, type: AuthResponseDto, description: 'Logged in' })
   async login(
     @Body() dto: LoginDto,
@@ -51,6 +69,8 @@ export class AuthController {
 
   @Public()
   @Post('refresh')
+  @Throttle({ [THROTTLER.ANONYMOUS]: ROUTE_LIMITS.REFRESH_PER_IP })
+  @UseGuards(OriginGuard) // reads the cookie: same-origin requests only (ADR-0020)
   @UseFilters(RefreshCookieFilter)
   @ApiCookieAuth()
   @ZodResponse({ status: 200, type: AuthResponseDto, description: 'Token pair rotated' })
@@ -65,6 +85,7 @@ export class AuthController {
   /** Public: must work even when the access token has already expired (spec §3.4). */
   @Public()
   @Post('logout')
+  @UseGuards(OriginGuard)
   @HttpCode(200)
   @ApiCookieAuth()
   @ApiOkResponse({ description: 'Session ended, cookie cleared (data: null)' })

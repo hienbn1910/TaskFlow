@@ -41,12 +41,14 @@ request
 ```
 GET /health/ready
  → HealthController.ready()
- → HealthService.ready(): runs both checks in parallel, each wrapped in withTimeout(…, 3000)
+ → ReadinessService.check(): runs both checks in parallel, each wrapped in withTimeout(…, 3000)
      ├ HealthRepository.pingDatabase()  → prisma.$queryRaw`SELECT 1`
-     └ RedisHealthIndicator: client.ping()  (REDIS_CLIENT from RedisModule)
+     └ HealthRepository.pingRedis()     → connect() on first use (lazyConnect), then PING
  → all up   → { status: 'ok', checks: { database: 'up', redis: 'up' } }
- → any down → ServiceUnavailableException with details → filter → 503 standard body
+ → any down → ServiceNotReadyException (503 + details) → filter keeps valid `details` → 503 standard body
 ```
+
+Readiness lives in its own `ReadinessService`, not in `HealthService`: liveness then has no dependency at all, so `/health` cannot touch the database by construction (ADR-0019).
 
 `SELECT 1` is raw SQL in a repository, the only way Prisma can express "is the database reachable" (RULE.md §3 Raw SQL; no `workspaceId` because nothing is tenant data).
 
@@ -106,7 +108,8 @@ Route overrides with `@Throttle({ … })`:
 `url: process.env['DIRECT_DATABASE_URL'] ?? process.env['DATABASE_URL']`. Also fixes `tsconfig.json`, which includes `prisma.config.ts` (old name) instead of `prisma7.config.ts`, so the file is type-checked.
 
 ### 3.7 Throttler storage in tests
-`test/utils/throttler.ts`: `resetThrottler(app)` gets `ThrottlerStorageService` from the app and clears its in-memory map. Called in `beforeEach` of every E2E file next to `resetDb`. No env switch (spec §6.3).
+`test/utils/throttler.ts`: `ResettableThrottlerStorage` wraps the **real** `ThrottlerStorageService` and can swap it for a fresh one; `createTestApp` provides it under the storage token. `resetThrottler(app)` is called in `beforeEach` of the E2E files that send HTTP requests, next to `resetDb`. No env switch (spec §6.3).
+*Changed in P7:* clearing the public `storage` map does not reset the counters (the library counts hits in a private map), so the first approach did not work.
 
 ### 3.8 Redis down in a test
 `createTestApp` accepts an optional override: the readiness test replaces `REDIS_CLIENT` with a **real** `ioredis` client pointed at an unused port. Not a mock: it is the same client, failing for the real reason (connection refused).

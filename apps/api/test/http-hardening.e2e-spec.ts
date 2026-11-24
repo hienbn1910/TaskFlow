@@ -24,6 +24,23 @@ describe('HTTP hardening (e2e)', () => {
 
   const server = () => app.getHttpServer();
 
+  // ADR-0019: neither the Vercel proxy nor the browser may cache User data
+  describe('Cache-Control', () => {
+    it.each([
+      { name: 'a 200', method: 'get', path: '/api/v1/health', status: 200 },
+      { name: 'a 401', method: 'get', path: `${AUTH_URL}/me`, status: 401 },
+      { name: 'a 400', method: 'post', path: `${AUTH_URL}/login`, status: 400 },
+      { name: 'an unknown route (404)', method: 'get', path: '/api/v1/nope', status: 404 },
+    ] as const)(
+      'should send Cache-Control: no-store on $name',
+      async ({ method, path, status }) => {
+        const res = await request(server())[method](path).send({}).expect(status);
+
+        expect(res.headers['cache-control']).toBe('no-store');
+      },
+    );
+  });
+
   describe('X-Request-Id', () => {
     it('should send a UUID X-Request-Id on a successful response', async () => {
       const res = await request(server()).get('/api/v1/health').expect(200);

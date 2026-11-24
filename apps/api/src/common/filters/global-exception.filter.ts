@@ -9,6 +9,7 @@ import {
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/client';
 import type { Request, Response } from 'express';
 import { ZodValidationException } from 'nestjs-zod';
+import { z } from 'zod';
 
 import {
   INTERNAL_ERROR_MESSAGE,
@@ -75,7 +76,12 @@ export function normalizeError(exception: unknown): NormalizedError {
     };
   }
   if (exception instanceof HttpException) {
-    return { statusCode: exception.getStatus(), message: extractHttpMessage(exception) };
+    const details = extractHttpDetails(exception);
+    return {
+      statusCode: exception.getStatus(),
+      message: extractHttpMessage(exception),
+      ...(details ? { details } : {}),
+    };
   }
   if (exception instanceof PrismaClientKnownRequestError && exception.code in PRISMA_ERROR_STATUS) {
     return {
@@ -110,6 +116,21 @@ function extractHttpMessage(exception: HttpException): string {
     if (Array.isArray(message)) return message.map(String).join(', ');
   }
   return exception.message;
+}
+
+const errorDetailsSchema = z.array(z.object({ field: z.string(), message: z.string() }));
+
+/**
+ * `details` an HttpException was built with, e.g. `new ServiceUnavailableException({ message,
+ * details })`. Anything that is not a list of `{ field, message }` is dropped, never sent raw.
+ */
+function extractHttpDetails(exception: HttpException): ErrorDetail[] | undefined {
+  const body = exception.getResponse();
+  if (typeof body === 'string' || !('details' in body)) {
+    return undefined;
+  }
+  const parsed = errorDetailsSchema.safeParse(body.details);
+  return parsed.success ? parsed.data : undefined;
 }
 
 interface ZodIssueLike {

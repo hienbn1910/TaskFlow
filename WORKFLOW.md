@@ -1455,7 +1455,7 @@ When implementing a feature (inside the Development Flow, test-first, ADR-0039):
    b. Green: the minimal code, layer by layer as the test needs it —
       DTO (Zod) → controller (@ZodResponse) → service (rules, transactions,
       events after commit) → repository (workspaceId as a direct column)
-   c. For ⚠️ parts: stop after (a); the developer writes (b); then review
+   c. For ⚠️ parts: (a) and (b) as usual, then stop for the developer's review
 3. Frontend: the same loop with Vitest + Testing Library
 4. Full suite, review, refactor; explain what was built and why
 

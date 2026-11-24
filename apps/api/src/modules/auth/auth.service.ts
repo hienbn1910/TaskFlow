@@ -55,7 +55,7 @@ export class AuthService {
       await verifyAgainstDummy(dto.password);
       throw new UnauthorizedException(AUTH_ERROR.INVALID_CREDENTIALS);
     }
-    // Password checked BEFORE the account status, so a blocked account costs the same time
+    // Password checked BEFORE the User status, so a blocked User costs the same time
     const passwordMatches = await verifyPassword(dto.password, user.password);
     if (!passwordMatches || !canSignIn(user)) {
       throw new UnauthorizedException(AUTH_ERROR.INVALID_CREDENTIALS);

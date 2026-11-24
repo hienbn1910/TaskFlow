@@ -5,7 +5,7 @@ import { USER_ERROR } from '@common/constants/user.constant';
 import { newPasswordSchema, passwordInputSchema } from '@common/types/user-fields.schema';
 
 /**
- * currentPassword: checked against the stored hash, so no strength rule (an old account may
+ * currentPassword: checked against the stored hash, so no strength rule (an old User may
  * predate the policy). newPassword: the full policy, same as register.
  */
 export const changePasswordSchema = z

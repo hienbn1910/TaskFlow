@@ -70,7 +70,7 @@ Checking through the database instead of the interface is an anti-pattern **unle
 
 ### Learning mode (who writes what)
 
-- For the important parts (marked ⚠️ in `docs/tasks/<branch>.md`): **the agent writes the failing test**, runs it and shows it red; **the developer writes the code** that turns it green; the agent runs the suite and reviews the code against RULE.md.
+- For the important parts (marked ⚠️ in `docs/tasks/<branch>.md`): **the agent writes the failing test**, runs it and shows it red, **then writes the code** that turns it green, runs the suite, explains both and **stops for the developer's review** before the next part (ADR-0039, amended in M2).
 - For simple parts, the agent does both, one slice at a time.
 
 ### Commands

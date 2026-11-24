@@ -84,7 +84,11 @@ describe('JwtAuthGuard', () => {
 
   describe('public routes', () => {
     it('should allow a @Public() method without checking any token', async () => {
-      const context = contextFor({ headers: {} }, FakeController, FakeController.prototype.publicRoute);
+      const context = contextFor(
+        { headers: {} },
+        FakeController,
+        FakeController.prototype.publicRoute,
+      );
 
       await expect(guard.canActivate(context)).resolves.toBe(true);
       expect(tokens.verifyAccess).not.toHaveBeenCalled();

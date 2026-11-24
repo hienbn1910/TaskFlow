@@ -50,7 +50,7 @@ Project skills live in `.claude/skills/` (index, sources and every change from u
 |---|---|---|
 | 1 Spec, open questions | `grilling` (or `/grill-me`) | Settles decisions in rounds of ≤ 5 numbered questions with a recommended answer; never re-asks what an ADR decided |
 | 1–2 when domain words change | `domain-modeling` (or `/grill-with-docs`) | Keeps `GLOSSARY.md` exact; proposes ADRs that meet the criteria in `docs/adr/README.md` |
-| 2 Plan, 4–5 Red → Green | `tdd` | Lists "Seams under test" in the plan; then one failing test → minimal code per slice; for ⚠️ parts the agent writes only the failing test |
+| 2 Plan, 4–5 Red → Green | `tdd` | Lists "Seams under test" in the plan; then one failing test → minimal code per slice; for ⚠️ parts the agent writes test and code, then stops for review |
 | 7 Fix (hard bugs) | `diagnosing-bugs` | Feedback loop first, ranked hypotheses shown to the developer, regression test before the fix |
 | 8 Review | `review-against-spec` | Diff vs spec and vs RULE.md / GLOSSARY / ADRs, two separate reports |
 | 10 PR | `pr` | Ready-to-paste title and body (Summary, Evidence, Merge Danger, Decisions); the developer opens the PR |
@@ -70,7 +70,7 @@ Not used on purpose: `implement`, `implement-spec`, `triage`, `wayfinder`, `to-s
 
 ### While Writing Code
 - Test first: one failing test at an approved seam, then the minimal code that turns it green (RULE.md §7)
-- For ⚠️ parts: write the failing test only; the developer writes the code
+- For ⚠️ parts: write the failing test and the code, explain them, then stop for the developer's review (ADR-0039)
 - Follow Controller → Service → Repository pattern strictly
 - Every tenant-scoped query MUST include `workspaceId` — no exceptions
 - Use Zod for validation, not class-validator
@@ -206,7 +206,7 @@ Read first: ADR-0006, 0019, 0020, 0023, 0031, 0033, 0034, 0035, 0036.
 
 Branch plan: `chore/api-production-readiness` → `feature/web-foundation` → `feature/web-auth` → `chore/deploy-pipeline`.
 
-- [ ] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
+- [x] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
 - [ ] `feature/web-foundation`: Vite + React + TS strict, Tailwind, router, generated API client, single-flight refresh, in-memory auth store, Vite proxy
 - [ ] `feature/web-auth`: login, register, profile, change password, logout
 - [ ] `chore/deploy-pipeline`: Neon + Render + Key Value (Singapore), Vercel proxy, GitHub Actions, Dependabot, UptimeRobot, Sentry; measure the WORKFLOW.md §3 risks
@@ -259,7 +259,7 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [36](docs/adr/0036-delivery-pipeline-and-database-operations.md) | CI → migrate → deploy hook; pooled vs direct URL; expand–contract; no preview deploys | Accepted |
 | [37](docs/adr/0037-vertical-slice-milestones.md) | Every milestone = BE + FE + tests, deployed from M2 | Accepted |
 | [38](docs/adr/0038-documentation-sources-of-truth.md) | One source of truth per topic; WORKFLOW-VI.md updated in the same PR | Accepted |
-| [39](docs/adr/0039-test-first-at-agreed-seams.md) | Test-first (red → green per slice); seams approved in the plan; endpoint tests with the real DB first; mock only system boundaries; agent writes red, developer writes green for ⚠️ parts | Accepted |
+| [39](docs/adr/0039-test-first-at-agreed-seams.md) | Test-first (red → green per slice); seams approved in the plan; endpoint tests with the real DB first; mock only system boundaries; agent writes red and green, developer reviews ⚠️ parts | Accepted, amended in M2 |
 
 ---
 
