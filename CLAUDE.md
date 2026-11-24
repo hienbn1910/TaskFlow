@@ -206,7 +206,7 @@ Read first: ADR-0006, 0019, 0020, 0023, 0031, 0033, 0034, 0035, 0036.
 
 Branch plan: `chore/api-production-readiness` → `feature/web-foundation` → `feature/web-auth` → `chore/deploy-pipeline`.
 
-- [ ] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
+- [x] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
 - [ ] `feature/web-foundation`: Vite + React + TS strict, Tailwind, router, generated API client, single-flight refresh, in-memory auth store, Vite proxy
 - [ ] `feature/web-auth`: login, register, profile, change password, logout
 - [ ] `chore/deploy-pipeline`: Neon + Render + Key Value (Singapore), Vercel proxy, GitHub Actions, Dependabot, UptimeRobot, Sentry; measure the WORKFLOW.md §3 risks
