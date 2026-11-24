@@ -12,14 +12,15 @@ import { buildOpenApiDocument } from './openapi/openapi-document';
 
 export const API_PREFIX = 'api/v1';
 
-/**
- * Every response is private and fresh: no proxy (Vercel) or browser cache keeps User data
- * (ADR-0019). Registered before every route, so errors and unknown routes get it too.
- */
+/** The trust proxy setting needs the Express instance, which Nest types as `any`. */
 function isExpressApp(value: unknown): value is Pick<Express, 'set'> {
   return typeof value === 'function' && 'set' in value && typeof value.set === 'function';
 }
 
+/**
+ * Every response is private and fresh: no proxy (Vercel) or browser cache keeps User data
+ * (ADR-0019). Registered before every route, so errors and unknown routes get it too.
+ */
 function noStore(_request: Request, response: Response, next: NextFunction): void {
   response.setHeader('Cache-Control', 'no-store');
   next();

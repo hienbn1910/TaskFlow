@@ -19,4 +19,14 @@ async function exportOpenApi(): Promise<void> {
   process.stdout.write(`Wrote ${OPENAPI_FILE}\n`);
 }
 
-void exportOpenApi();
+/** A failed export must fail the command (non-zero exit), with the reason on stderr. */
+async function main(): Promise<void> {
+  try {
+    await exportOpenApi();
+  } catch (error) {
+    process.stderr.write(`openapi:export failed: ${String(error)}\n`);
+    process.exitCode = 1;
+  }
+}
+
+void main();

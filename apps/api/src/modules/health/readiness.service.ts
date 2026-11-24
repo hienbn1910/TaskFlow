@@ -9,7 +9,10 @@ import { HealthRepository } from './health.repository';
 /** A hanging dependency answers "down" after this, so readiness never hangs (spec §7.4). */
 const CHECK_TIMEOUT_MS = 3000;
 
-type CheckName = 'database' | 'redis';
+type CheckName = keyof ReadinessResponse['checks'];
+
+/** The only reason a client sees: causes and hosts stay in the log (readiness is public). */
+const UNREACHABLE = 'unreachable';
 
 /**
  * Readiness: can this instance serve traffic? Kept apart from HealthService on purpose:
@@ -30,13 +33,13 @@ export class ReadinessService {
     const down = results.filter((result) => !result.up);
     if (down.length > 0) {
       throw new ServiceNotReadyException(
-        down.map(({ name }) => ({ field: name, message: 'unreachable' })),
+        down.map(({ name }) => ({ field: name, message: UNREACHABLE })),
       );
     }
     return { status: 'ok', checks: { database: 'up', redis: 'up' } };
   }
 
-  /** Never throws: the reason goes to the log only, the client sees "unreachable". */
+  /** Never throws: the reason goes to the log only, the client sees UNREACHABLE. */
   private async isUp(
     name: CheckName,
     ping: () => Promise<void>,

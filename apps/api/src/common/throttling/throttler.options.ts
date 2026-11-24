@@ -8,7 +8,7 @@ import { DEFAULT_LIMITS, THROTTLER, TOO_MANY_REQUESTS_MESSAGE } from './throttle
  * instead of the per-throttler `X-RateLimit-*-<name>` / `Retry-After-<name>` headers.
  * Default storage: in memory (one instance, ADR-0018; no Redis commands).
  */
-export const throttlerOptions: ThrottlerModuleOptions = {
+export const THROTTLER_OPTIONS: ThrottlerModuleOptions = {
   throttlers: Object.values(THROTTLER).map((name) => ({
     name,
     ...DEFAULT_LIMITS[name],

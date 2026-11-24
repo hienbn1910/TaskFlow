@@ -92,6 +92,7 @@ A partial index is not a full unique key, so `findUnique({ where: { email } })` 
 - `Origin` header equal to `FRONTEND_URL` → the request continues.
 - `Origin` different **or missing** → `403`, standard error body, message `"Invalid origin"`. No `Referer` fallback.
 - Runs before the handler: a rejected request does not read, rotate or delete any session.
+- The refresh-cookie filter does not clear the cookie on this 403 either (`InvalidOriginException`): otherwise a cross-site POST could log the User out (decided in the branch review).
 - Consequence accepted: calling these routes from Swagger UI (`localhost:3000`) or curl without `Origin` gets 403.
 
 ---
@@ -127,6 +128,7 @@ Set on **every** response: success, error (including 404 for unknown routes and 
 ### 6.2 Rules
 - **Normalized email:** the login key uses the email trimmed and lowercased exactly like `emailSchema`, so `A@x.com ` and `a@x.com` share one counter. If the body has no usable email, only the IP limit applies.
 - **Order:** the per-User limits run after `JwtAuthGuard`, so the User id is known. Anonymous requests are keyed by IP.
+- **Known gap (accepted, revisit in M7):** a request to a protected route without a valid token gets 401 from `JwtAuthGuard` before any throttler counts it. Guessing a token is not feasible (signed JWT) and the 401 costs one signature check, no database read.
 - **Exempt:** `GET /health` and `GET /health/ready` (`@SkipThrottle`). Render's health check calls liveness often from one internal IP, and a 429 there would make Render restart the service.
 - **Response when exceeded:** `429`, header `Retry-After` (seconds), standard error body (Decision #1), message `"Too many requests"`.
 - Counters reset on restart: accepted (ADR-0031).
@@ -140,7 +142,7 @@ Set on **every** response: success, error (including 404 for unknown routes and 
 ## 7. Observability and Health (2.6, 2.7)
 
 ### 7.1 Logs
-- `nestjs-pino`. One line per request: method, route, status, `responseTime`, `requestId`, `userId` (when authenticated). (`workspaceId` from M3.)
+- `nestjs-pino`. One line per request: method, URL, route (template, e.g. `/api/v1/users/:id`; unknown URLs log Nest's catch-all `/api/v1{/*splat}`), status, `responseTime`, `requestId`, `userId` (when authenticated). (`workspaceId` from M3.)
 - Format and level by environment:
 
 | Env | Format | Default level |

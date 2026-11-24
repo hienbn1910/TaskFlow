@@ -62,6 +62,7 @@ describe('Rate limiting (e2e)', () => {
 
       expect(res.status).toBe(429);
       expect(Number(res.headers['retry-after'])).toBeGreaterThan(0);
+      expect(res.headers['cache-control']).toBe('no-store'); // spec §5.2: 429 included
       expect(Number(res.headers['retry-after'])).toBeLessThanOrEqual(60);
       expect(bodyOf(res, errorBodySchema)).toEqual({
         success: false,

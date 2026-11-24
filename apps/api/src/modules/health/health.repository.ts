@@ -4,7 +4,11 @@ import type { Redis } from 'ioredis';
 import { PrismaService } from '../../prisma/prisma.service';
 import { REDIS_CLIENT } from '../../redis/redis.constants';
 
-/** The two dependencies readiness checks. Each method resolves when reachable, rejects otherwise. */
+/**
+ * The two dependencies readiness checks. Each method resolves when reachable, rejects otherwise.
+ * Redis is here too although RULE.md §3 keeps repositories for the database: a one-line PING
+ * does not deserve its own class (decided in the branch review).
+ */
 @Injectable()
 export class HealthRepository {
   constructor(

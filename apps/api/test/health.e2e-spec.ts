@@ -61,6 +61,8 @@ describe('Health readiness (e2e)', () => {
       const res = await request(app.getHttpServer()).get(READY_URL).expect(503);
 
       expect(Date.now() - startedAt).toBeLessThan(TIMEOUT_MS);
+      // A 5xx must not be cached either: the proxy would keep answering "not ready" (ADR-0019)
+      expect(res.headers['cache-control']).toBe('no-store');
       const body = bodyOf(res, errorBodySchema);
       expect(body.message).toBe('Service not ready');
       expect(body.details).toEqual([{ field: 'redis', message: 'unreachable' }]);

@@ -12,7 +12,7 @@ import { canSignIn } from './user.rules';
 import { UsersRepository } from './users.repository';
 
 /**
- * The current User's own profile. `userId` always comes from the access token
+ * Use cases of the current User on their own data. `userId` always comes from the access token
  * (@CurrentUser), never from the URL or body, so a user can only change themselves.
  */
 @Injectable()

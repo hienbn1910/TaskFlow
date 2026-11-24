@@ -16,17 +16,22 @@ export const THROTTLER = {
   CREDENTIALS: 'credentials',
 } as const;
 
+export type ThrottlerName = (typeof THROTTLER)[keyof typeof THROTTLER];
+
 export interface ThrottleLimit {
   readonly limit: number;
   readonly ttl: number;
 }
 
-/** Defaults of the named throttlers: apply to every route unless overridden. */
+/**
+ * Defaults of the named throttlers: apply to every route unless overridden. Keyed by every
+ * ThrottlerName: a new throttler without a default does not compile.
+ */
 export const DEFAULT_LIMITS = {
   [THROTTLER.ANONYMOUS]: { limit: 60, ttl: MINUTE_MS },
   [THROTTLER.USER]: { limit: 120, ttl: MINUTE_MS },
   [THROTTLER.CREDENTIALS]: { limit: 5, ttl: MINUTE_MS },
-} as const satisfies Record<string, ThrottleLimit>;
+} as const satisfies Record<ThrottlerName, ThrottleLimit>;
 
 /** Route overrides (`@Throttle`). */
 export const ROUTE_LIMITS = {
@@ -41,9 +46,11 @@ export const TOO_MANY_REQUESTS_MESSAGE = 'Too many requests';
 /**
  * For `@SkipThrottle(SKIP_ALL_THROTTLERS)`. A bare `@SkipThrottle()` only skips a throttler
  * named "default", which this app does not have: every named throttler must be listed.
+ * Written out (not built from THROTTLER, which would need a cast): satisfies makes a new
+ * throttler missing here a compile error.
  */
 export const SKIP_ALL_THROTTLERS = {
   [THROTTLER.ANONYMOUS]: true,
   [THROTTLER.USER]: true,
   [THROTTLER.CREDENTIALS]: true,
-} as const satisfies Record<(typeof THROTTLER)[keyof typeof THROTTLER], true>;
+} as const satisfies Record<ThrottlerName, true>;

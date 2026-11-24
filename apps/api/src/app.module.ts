@@ -8,7 +8,7 @@ import { ZodSerializerInterceptor, ZodValidationPipe } from 'nestjs-zod';
 import { GlobalExceptionFilter } from '@common/filters/global-exception.filter';
 import { ResponseInterceptor } from '@common/interceptors/response.interceptor';
 import { buildLoggerOptions } from '@common/logging/logger.options';
-import { throttlerOptions } from '@common/throttling/throttler.options';
+import { THROTTLER_OPTIONS } from '@common/throttling/throttler.options';
 import { appConfig, configLoaders, validateEnv } from '@config/index';
 import { AuthModule } from '@modules/auth/auth.module';
 import { HealthModule } from '@modules/health/health.module';
@@ -33,7 +33,7 @@ import { RedisModule } from './redis/redis.module';
       }),
     }),
     // Rate limiting in memory (ADR-0031). The guard is registered in AuthModule, after JwtAuthGuard
-    ThrottlerModule.forRoot(throttlerOptions),
+    ThrottlerModule.forRoot(THROTTLER_OPTIONS),
     PrismaModule,
     RedisModule,
     HealthModule,
