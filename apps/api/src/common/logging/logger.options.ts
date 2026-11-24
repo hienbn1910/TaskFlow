@@ -30,8 +30,8 @@ const REDACTED_PATHS = [
 ];
 
 /**
- * pino-http options (ADR-0035, spec §7.1): one JSON line per request with method, url, status,
- * responseTime, request id and User id. Pretty-printed in development only; `LOG_LEVEL` overrides
+ * pino-http options (ADR-0035, spec §7.1): one JSON line per request with method, url, route,
+ * status, responseTime, request id and User id. Pretty-printed in development only; `LOG_LEVEL` overrides
  * the level of the environment.
  */
 export function buildLoggerOptions(config: LoggerConfig): Options {
@@ -40,15 +40,33 @@ export function buildLoggerOptions(config: LoggerConfig): Options {
     level: config.logLevel ?? DEFAULT_LEVEL[config.nodeEnv],
     genReqId: generateRequestId,
     redact: { paths: REDACTED_PATHS, censor: '[REDACTED]' },
-    // Called again when the response finishes, so the User set by JwtAuthGuard is included
+    // Called again when the response finishes, so the matched route and the User set by
+    // JwtAuthGuard are both known by then
     customProps: (request) => {
+      const route = routeOf(request);
       const userId = userIdOf(request);
-      return userId === undefined ? {} : { userId };
+      return {
+        ...(route === undefined ? {} : { route }),
+        ...(userId === undefined ? {} : { userId }),
+      };
     },
     ...(isDevelopment
       ? { transport: { target: 'pino-pretty', options: { singleLine: true } } }
       : {}),
   };
+}
+
+/**
+ * Route template matched by Express (`/api/v1/users/:id`), not the URL: groups the lines of one
+ * endpoint and keeps ids out of the field. An unknown URL logs Nest's not-found catch-all,
+ * `/api/v1{/*splat}`, so every 404 groups under one route.
+ */
+function routeOf(request: IncomingMessage): string | undefined {
+  const route: unknown = 'route' in request ? request.route : undefined;
+  if (typeof route === 'object' && route !== null && 'path' in route) {
+    return typeof route.path === 'string' ? route.path : undefined;
+  }
+  return undefined;
 }
 
 /** `request.user.id` set by JwtAuthGuard; pino-http types the request as a plain IncomingMessage. */

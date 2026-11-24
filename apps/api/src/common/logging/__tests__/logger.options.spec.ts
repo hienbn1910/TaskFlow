@@ -15,13 +15,14 @@ const SECRETS = {
 /**
  * A real pino-http logger built from the options, writing to memory, behind a tiny Express app.
  * The route behaves like JwtAuthGuard (sets `req.user` AFTER the middleware) and logs a body.
+ * It has a path parameter, so the logged route (template) differs from the URL.
  */
 async function logOneRequest(): Promise<string[]> {
   const lines: string[] = [];
   const options = buildLoggerOptions({ nodeEnv: 'production', logLevel: undefined });
   const app = express();
   app.use(pinoHttp(options, { write: (line: string) => lines.push(line) }));
-  app.post('/login', (req, res) => {
+  app.post('/sessions/:id', (req, res) => {
     req.user = { id: 'user-1', email: 'hien@example.com' };
     const { password, currentPassword, newPassword } = SECRETS;
     req.log.info(
@@ -33,7 +34,7 @@ async function logOneRequest(): Promise<string[]> {
   });
 
   await request(app)
-    .post('/login')
+    .post('/sessions/abc-123')
     .set('Authorization', `Bearer ${SECRETS.bearer}`)
     .set('Cookie', `refresh_token=${SECRETS.cookie}`)
     .set('X-Request-Id', '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34');
@@ -84,6 +85,7 @@ describe('buildLoggerOptions', () => {
         expect.objectContaining({
           msg: 'request completed',
           userId: 'user-1',
+          route: '/sessions/:id',
           req: expect.objectContaining({ id: '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34' }),
           res: expect.objectContaining({ statusCode: 200 }),
           responseTime: expect.any(Number),
