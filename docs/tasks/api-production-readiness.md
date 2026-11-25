@@ -189,7 +189,7 @@ P3 comes before P4–P8 because their error assertions include `requestId`. P5 (
 
 ## Verification
 
-### - [ ] P14. Full run, review, docs, PR
+### - [x] P14. Full run, review, docs, PR
 
 | Step | |
 |---|---|
