@@ -36,4 +36,22 @@ describe('OpenAPI contract (e2e)', () => {
 
     expect(assertUpToDate).not.toThrow();
   });
+
+  // Zod 4 writes nullable fields as `type: ['string', 'null']`, which only OpenAPI 3.1 allows.
+  // A 3.0 document with that syntax is rejected by strict tools such as orval (ADR-0033).
+  it('should declare OpenAPI 3.1 when a schema uses a type list', () => {
+    const document = buildOpenApiDocument(app);
+
+    expect(hasTypeList(document)).toBe(true);
+    expect(document.openapi).toMatch(/^3\.1\./);
+  });
 });
+
+/** True when any `type` in the document is an array (OpenAPI 3.1 syntax). */
+function hasTypeList(node: unknown): boolean {
+  if (Array.isArray(node)) return node.some(hasTypeList);
+  if (typeof node !== 'object' || node === null) return false;
+  return Object.entries(node).some(
+    ([key, value]) => (key === 'type' && Array.isArray(value)) || hasTypeList(value),
+  );
+}

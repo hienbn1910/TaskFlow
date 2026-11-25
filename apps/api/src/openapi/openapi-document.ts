@@ -15,6 +15,8 @@ export const OPENAPI_FILE = join(__dirname, '..', '..', 'openapi.json');
  */
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
+    // 3.1: Zod 4 writes nullable fields as `type: [x, 'null']`, invalid in 3.0 (rejected by orval)
+    .setOpenAPIVersion('3.1.0')
     .setTitle('TaskFlow API')
     .setDescription('Multi-tenant workspace collaboration platform')
     .setVersion('0.1.0')
