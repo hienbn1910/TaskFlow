@@ -18,6 +18,8 @@ export default defineConfig({
   },
   test: {
     environment: 'jsdom',
+    // The page origin in tests is the dev server's, so relative /api URLs resolve like in dev
+    environmentOptions: { jsdom: { url: 'http://localhost:5173' } },
     setupFiles: ['./src/test/setup.ts'],
     restoreMocks: true,
   },

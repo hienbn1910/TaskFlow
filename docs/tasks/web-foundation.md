@@ -66,14 +66,15 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## HTTP Client
 
-### - [ ] W2. `unwrapEnvelope` and `ApiError`
+### - [x] W2. `unwrapEnvelope` and `ApiError`
 
 | | |
 |---|---|
 | Red (F5) | `src/api/__tests__/envelope.test.ts`: `{ success, data: x }` → `x`; `{ success, data: [a], meta }` → `{ items: [a], meta }`; `{ success, data: null }` → `null` (the three shapes of the API's `toSuccessResponse`) |
 | Red (F1) | `src/api/__tests__/http.test.ts` (MSW): a 409 standard body → `ApiError { status: 409, message, requestId }`; a 400 with `details` keeps them; a non-JSON 502 → `ApiError` with a generic message and no `requestId`; a 200 response is returned unwrapped |
 | Green | `unwrapEnvelope`, `ApiError`, `toApiError(response)`, `request` returns unwrapped data and throws `ApiError` |
-| Also | `src/test/server.ts` (MSW `setupServer`, `onUnhandledRequest: 'error'`), wired in `setup.ts` |
+| Also | `src/test/server.ts` (MSW `setupServer`), wired in `setup.ts`. MSW 3 renamed the option to `onUnhandledFrame: 'error'`: the old name was silently ignored (tests stayed green, unhandled requests only warned), caught by typecheck; a probe test proved an unhandled request now fails. jsdom URL = `http://localhost:5173` |
+| Done | Extra cases: a 2xx body that is not the envelope throws; 204 → `undefined`; network failure → `ApiError` status 0. The error body schema is hand-written (errors are not in openapi.json) |
 
 ### - [ ] W3. ⚠️ Auth retry in `request`
 
