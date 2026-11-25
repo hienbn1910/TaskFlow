@@ -4,11 +4,17 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "generate": "orval",
+    "predev": "pnpm generate",
     "dev": "vite",
+    "prebuild": "pnpm generate",
     "build": "tsc --noEmit -p tsconfig.json && vite build",
     "preview": "vite preview",
+    "prelint": "pnpm generate",
     "lint": "eslint . --max-warnings 0",
+    "pretypecheck": "pnpm generate",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "pretest": "pnpm generate",
     "test": "vitest run",
     "test:watch": "vitest"
   },

@@ -52,7 +52,7 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 | Check | `createBrowserRouter` / `createMemoryRouter` exist in `react-router` 8; `pnpm lint && pnpm typecheck && pnpm test` at the root run both apps |
 | Done | ESLint 9 (jsx-a11y does not support 10). pnpm's `minimumReleaseAge` (1 day) refused 5 packages published hours earlier: minimums lowered so pnpm picks the newest version past the cutoff (`react-router` 8.5.2, `vitest` 5.1.1, `@types/react` 19.3.0), no `minimumReleaseAgeExclude`. `esbuild` (via orval) allowed to run its install script. Security lint rules checked with a probe file (Web Storage, `dangerouslySetInnerHTML`). `vite build`: 314 kB JS / 99 kB gzip |
 
-### - [ ] W1. Generated client
+### - [x] W1. Generated client
 
 | | |
 |---|---|
@@ -60,6 +60,7 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 | Scripts | `generate`; `predev`, `prebuild`, `pretypecheck`, `pretest`, `prelint` run it |
 | Ignore | `/.gitignore` and `/.prettierignore`: `apps/web/src/api/generated/` |
 | Test | None (configuration). Proof: delete `src/api/generated/`, run `pnpm --filter web typecheck` → regenerated and green; `git status` shows no generated file; the generated `auth` file exports a refresh function, a `useGetMe` hook and its query key helper |
+| Done | orval rejected `openapi.json`: it declared 3.0.0 but used the 3.1 syntax `type: [x, 'null']`. Fixed in the API (`setOpenAPIVersion('3.1.0')`) with a contract test (a type list requires 3.1); separate commit. Names: `override.operationName` maps `AuthController_me` → `authMe`, so the hooks are `useAuthMe`, `getAuthMeQueryKey`, `authRefresh` (spec names `useGetMe` read as `useAuthMe` from here on). `includeHttpResponseReturnType: false`: functions return the DTO. Proof: generated folder deleted → `pnpm --filter web typecheck` regenerated it and passed; not in `git status` |
 
 ---
 
