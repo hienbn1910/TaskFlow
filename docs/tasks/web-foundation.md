@@ -41,7 +41,7 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## Setup
 
-### - [ ] W0. Scaffold
+### - [x] W0. Scaffold
 
 | | |
 |---|---|
@@ -50,6 +50,7 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 | Red | `src/app/__tests__/smoke.test.tsx`: a `createMemoryRouter` + `RouterProvider` renders a route element with the text `TaskFlow`. Red: the stub route renders nothing |
 | Green | The route renders `TaskFlow` |
 | Check | `createBrowserRouter` / `createMemoryRouter` exist in `react-router` 8; `pnpm lint && pnpm typecheck && pnpm test` at the root run both apps |
+| Done | ESLint 9 (jsx-a11y does not support 10). pnpm's `minimumReleaseAge` (1 day) refused 5 packages published hours earlier: minimums lowered so pnpm picks the newest version past the cutoff (`react-router` 8.5.2, `vitest` 5.1.1, `@types/react` 19.3.0), no `minimumReleaseAgeExclude`. `esbuild` (via orval) allowed to run its install script. Security lint rules checked with a probe file (Web Storage, `dangerouslySetInnerHTML`). `vite build`: 314 kB JS / 99 kB gzip |
 
 ### - [ ] W1. Generated client
 
