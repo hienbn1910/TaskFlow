@@ -1,9 +1,14 @@
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { initialAuthState, useAuthStore } from '@/features/auth/auth-store';
+import { refreshSession } from '@/features/auth/session';
 import { server } from '@/test/server';
 
 import { ApiError, request } from '../http';
+
+// Stub until W4: the real refreshSession is tested against MSW there
+vi.mock('@/features/auth/session', () => ({ refreshSession: vi.fn() }));
 
 const URL = '/api/v1/things';
 const REQUEST_ID = '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34';
@@ -86,5 +91,88 @@ describe('request', () => {
       status: 0,
       message: 'Cannot reach the server. Check your connection.',
     });
+  });
+});
+
+describe('request with an access token', () => {
+  /** The Authorization header of every call the endpoint received, in order. */
+  let authHeaders: (string | null)[];
+
+  /** The endpoint answers each call with the next status of the list. */
+  function respondWith(...statuses: number[]) {
+    authHeaders = [];
+    server.use(
+      http.get(URL, ({ request: req }) => {
+        authHeaders.push(req.headers.get('Authorization'));
+        const status = statuses[authHeaders.length - 1] ?? 500;
+        return status === 200
+          ? HttpResponse.json({ success: true, data: { id: 't1' } })
+          : HttpResponse.json(errorBody(status, 'Unauthorized'), { status });
+      }),
+    );
+  }
+
+  beforeEach(() => {
+    useAuthStore.setState(initialAuthState);
+    // The refresh renews the token, like the real one on a 200
+    vi.mocked(refreshSession).mockReset();
+    vi.mocked(refreshSession).mockImplementation(async () => {
+      useAuthStore.getState().signIn('new-token');
+      await Promise.resolve();
+    });
+  });
+
+  it('should send the access token as a Bearer header', async () => {
+    useAuthStore.getState().signIn('old-token');
+    respondWith(200);
+
+    await request(URL, { method: 'GET' });
+
+    expect(authHeaders).toEqual(['Bearer old-token']);
+  });
+
+  it('should refresh once and retry once with the new token after a 401', async () => {
+    useAuthStore.getState().signIn('old-token');
+    respondWith(401, 200);
+
+    await expect(request(URL, { method: 'GET' })).resolves.toEqual({ id: 't1' });
+
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(authHeaders).toEqual(['Bearer old-token', 'Bearer new-token']);
+  });
+
+  it('should throw the second 401 instead of refreshing again', async () => {
+    useAuthStore.getState().signIn('old-token');
+    respondWith(401, 401);
+
+    const error = await errorOf(request(URL, { method: 'GET' }));
+
+    expect(error.status).toBe(401);
+    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(authHeaders).toHaveLength(2);
+  });
+
+  it('should throw the 401 without retrying when the refresh ends the session', async () => {
+    useAuthStore.getState().signIn('old-token');
+    vi.mocked(refreshSession).mockImplementation(async () => {
+      useAuthStore.getState().signOut();
+      await Promise.resolve();
+    });
+    respondWith(401);
+
+    const error = await errorOf(request(URL, { method: 'GET' }));
+
+    expect(error.status).toBe(401);
+    expect(authHeaders).toHaveLength(1);
+  });
+
+  it('should throw a 401 at once when the request was sent without a token', async () => {
+    respondWith(401);
+
+    const error = await errorOf(request(URL, { method: 'GET' }));
+
+    expect(error.status).toBe(401);
+    expect(refreshSession).not.toHaveBeenCalled();
+    expect(authHeaders).toEqual([null]);
   });
 });

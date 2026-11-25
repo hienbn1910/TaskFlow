@@ -76,12 +76,13 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 | Also | `src/test/server.ts` (MSW `setupServer`), wired in `setup.ts`. MSW 3 renamed the option to `onUnhandledFrame: 'error'`: the old name was silently ignored (tests stayed green, unhandled requests only warned), caught by typecheck; a probe test proved an unhandled request now fails. jsdom URL = `http://localhost:5173` |
 | Done | Extra cases: a 2xx body that is not the envelope throws; 204 → `undefined`; network failure → `ApiError` status 0. The error body schema is hand-written (errors are not in openapi.json) |
 
-### - [ ] W3. ⚠️ Auth retry in `request`
+### - [x] W3. ⚠️ Auth retry in `request`
 
 | | |
 |---|---|
 | Red (F1) | Same file: with a token in the store, the request carries `Authorization: Bearer <token>`; a 401 calls `refreshSession` once and retries once with the new token (2 calls to the endpoint); a second 401 throws `ApiError(401)`; a request sent **without** a token that gets 401 throws at once and does not call `refreshSession` |
 | Green | `request`: header from the store, 401 branch, one retry. `src/features/auth/auth-store.ts` (token, status). `src/features/auth/session.ts` stub `refreshSession` (replaced in W4) |
+| Done | `request` split into `send` (one fetch, Bearer) and `retryAfterRefresh` (refresh, re-read the token, one retry). Extra case: a refresh that ends the session → the original 401, no retry. `refreshSession` stubbed with `vi.mock` until W4. Mutation checks: dropping `token !== null` or the signed-out check each fails one test. Reviewed by the developer |
 
 ---
 

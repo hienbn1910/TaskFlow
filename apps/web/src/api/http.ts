@@ -1,5 +1,8 @@
 import { z } from 'zod';
 
+import { useAuthStore } from '@/features/auth/auth-store';
+import { refreshSession } from '@/features/auth/session';
+
 const GENERIC_MESSAGE = 'Something went wrong. Try again.';
 const NETWORK_MESSAGE = 'Cannot reach the server. Check your connection.';
 
@@ -81,15 +84,40 @@ async function readJson(response: Response): Promise<unknown> {
 }
 
 /**
- * The orval mutator: every generated request function calls it (ADR-0033).
- * Relative URLs keep requests same-origin (Vite proxy, Vercel rewrite: ADR-0020).
+ * One fetch. Relative URLs keep requests same-origin (Vite proxy, Vercel rewrite: ADR-0020),
+ * so the refresh cookie travels with `credentials: 'same-origin'`.
  */
-export async function request<T>(url: string, init: RequestInit): Promise<T> {
-  let response: Response;
+async function send(url: string, init: RequestInit, token: string | null): Promise<Response> {
+  const headers = new Headers(init.headers);
+  if (token !== null) headers.set('Authorization', `Bearer ${token}`);
   try {
-    response = await fetch(url, { ...init, credentials: 'same-origin' });
+    return await fetch(url, { ...init, headers, credentials: 'same-origin' });
   } catch {
     throw new ApiError({ status: 0, message: NETWORK_MESSAGE });
+  }
+}
+
+/**
+ * One refresh, then one retry (spec §5.1). When the refresh ended the session there is no
+ * token to retry with: the original 401 is returned.
+ */
+async function retryAfterRefresh(
+  url: string,
+  init: RequestInit,
+  unauthorized: Response,
+): Promise<Response> {
+  await refreshSession();
+  const token = useAuthStore.getState().accessToken;
+  return token === null ? unauthorized : send(url, init, token);
+}
+
+/** The orval mutator: every generated request function calls it (ADR-0033). */
+export async function request<T>(url: string, init: RequestInit): Promise<T> {
+  const token = useAuthStore.getState().accessToken;
+  let response = await send(url, init, token);
+  // Only a request sent with a token can have an expired one: a wrong password stays a 401
+  if (response.status === 401 && token !== null) {
+    response = await retryAfterRefresh(url, init, response);
   }
   if (!response.ok) {
     throw await toApiError(response);
