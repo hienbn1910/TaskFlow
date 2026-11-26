@@ -115,7 +115,7 @@ Both into `src/api/generated/` (gitignored). The exact option names are checked 
 | `src/api/http.ts` | `request` (orval mutator), `rawRequest`, `ApiError`, `unwrapEnvelope` |
 | `src/features/auth/session.ts` | `refreshSession`, `startSession`, `withRefreshLock` |
 | `src/features/auth/auth-store.ts` | Zustand: `accessToken`, `status`, `signIn`, `signOut` |
-| `src/features/auth/routes/LoginPage.tsx`, `RegisterPage.tsx` | Placeholders |
+| `src/features/auth/routes/SignInPage.tsx`, `SignUpPage.tsx` | Placeholders (`/login`, `/register`; GLOSSARY: avoid "Login") |
 | `src/features/home/routes/HomePage.tsx` | "Hello, {fullName}" |
 | `src/shared/ui/FullPageLoader.tsx`, `NotFoundPage.tsx`, `ErrorState.tsx` | Shared UI |
 | `src/shared/lib/safe-next.ts` | `next` validation |

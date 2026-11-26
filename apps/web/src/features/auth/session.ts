@@ -17,19 +17,21 @@ let inFlight: Promise<void> | null = null;
  * Rejects only when the refresh failed without ending the session (network, 429, 5xx).
  */
 export async function refreshSession(): Promise<void> {
-  inFlight ??= runRefresh();
+  inFlight ??= refreshThenRelease();
   return inFlight;
 }
 
-async function runRefresh(): Promise<void> {
+/** The refresh under the lock; frees the in-flight slot however it ends. */
+async function refreshThenRelease(): Promise<void> {
   try {
-    await withRefreshLock(refreshOnce);
+    await withRefreshLock(requestNewSession);
   } finally {
     inFlight = null;
   }
 }
 
-async function refreshOnce(): Promise<void> {
+/** One `POST /auth/refresh` and its result applied to the store and the cache. */
+async function requestNewSession(): Promise<void> {
   let auth: AuthResponseDtoOutput;
   try {
     auth = await rawRequest<AuthResponseDtoOutput>(getAuthRefreshUrl(), { method: 'POST' });

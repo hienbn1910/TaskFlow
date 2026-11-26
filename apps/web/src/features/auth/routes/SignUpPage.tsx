@@ -1,4 +1,4 @@
 /** Placeholder: the form arrives in feature/web-auth. */
-export function LoginPage() {
-  return <h1>Sign in</h1>;
+export function SignUpPage() {
+  return <h1>Sign up</h1>;
 }

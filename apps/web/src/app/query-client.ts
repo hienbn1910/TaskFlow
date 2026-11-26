@@ -1,7 +1,7 @@
 import { MutationCache, type MutationMeta, QueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { ApiError } from '@/api/http';
+import { ApiError, GENERIC_MESSAGE } from '@/api/http';
 
 declare module '@tanstack/react-query' {
   interface Register {
@@ -10,7 +10,6 @@ declare module '@tanstack/react-query' {
   }
 }
 
-const GENERIC_MESSAGE = 'Something went wrong. Try again.';
 const MAX_QUERY_RETRIES = 2;
 
 /**

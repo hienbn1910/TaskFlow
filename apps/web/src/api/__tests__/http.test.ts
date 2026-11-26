@@ -1,8 +1,7 @@
 import { http, HttpResponse } from 'msw';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-import { queryClient } from '@/app/query-client';
-import { initialAuthState, useAuthStore } from '@/features/auth/auth-store';
+import { useAuthStore } from '@/features/auth/auth-store';
 import { errorBody, REFRESH_URL, refreshBody } from '@/test/auth-fixtures';
 import { server } from '@/test/server';
 
@@ -119,8 +118,6 @@ describe('request with an access token', () => {
   }
 
   beforeEach(() => {
-    useAuthStore.setState(initialAuthState);
-    queryClient.clear();
     authHeaders = [];
     refreshCalls = 0;
     refreshAnswers(200);

@@ -1,9 +1,11 @@
 import { z } from 'zod';
 
+// A deliberate import cycle (http ↔ session): session.ts uses rawRequest, this file uses
+// refreshSession. Safe because both are only called at run time, never while modules load.
 import { useAuthStore } from '@/features/auth/auth-store';
 import { refreshSession } from '@/features/auth/session';
 
-const GENERIC_MESSAGE = 'Something went wrong. Try again.';
+export const GENERIC_MESSAGE = 'Something went wrong. Try again.';
 const NETWORK_MESSAGE = 'Cannot reach the server. Check your connection.';
 
 /**

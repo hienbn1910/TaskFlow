@@ -1,5 +1,5 @@
 import { delay, http, HttpResponse } from 'msw';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { getAuthMeQueryKey } from '@/api/generated/endpoints/auth/auth';
 import { ApiError, request } from '@/api/http';
@@ -7,7 +7,7 @@ import { queryClient } from '@/app/query-client';
 import { errorBody, REFRESH_URL, refreshBody, TEST_USER } from '@/test/auth-fixtures';
 import { server } from '@/test/server';
 
-import { initialAuthState, useAuthStore } from '../auth-store';
+import { useAuthStore } from '../auth-store';
 import { refreshSession, startSession, withRefreshLock } from '../session';
 
 const THINGS_URL = '/api/v1/things';
@@ -28,11 +28,6 @@ function refreshAnswers(respond: () => Response) {
 function store() {
   return useAuthStore.getState();
 }
-
-beforeEach(() => {
-  useAuthStore.setState(initialAuthState);
-  queryClient.clear();
-});
 
 describe('refreshSession', () => {
   it('should send one refresh for five requests that get 401 together, then retry each once', async () => {

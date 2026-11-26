@@ -44,7 +44,7 @@ export function restorePatternTypes(document: OpenAPIObject): OpenAPIObject {
   for (const schema of Object.values(document.components?.schemas ?? {})) {
     if (!('properties' in schema)) continue;
     for (const property of Object.values(schema.properties ?? {})) {
-      if (!('$ref' in property) && isTypelessPatternList(property)) restoreString(property);
+      if (!('$ref' in property) && isTypelessPatternList(property)) restoreStringType(property);
     }
   }
   return document;
@@ -55,7 +55,7 @@ function isTypelessPatternList(property: SchemaObject): boolean {
   return property.allOf.every((part) => 'pattern' in part && !('type' in part));
 }
 
-function restoreString(property: SchemaObject): void {
+function restoreStringType(property: SchemaObject): void {
   const { minLength, maxLength, allOf = [] } = property;
   const lengths = [{ minLength }, { maxLength }].filter(
     (limit) => Object.values(limit)[0] !== undefined,

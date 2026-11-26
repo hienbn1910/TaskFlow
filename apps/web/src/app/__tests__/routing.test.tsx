@@ -1,9 +1,9 @@
 import { screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 import { getAuthMeQueryKey } from '@/api/generated/endpoints/auth/auth';
 import { queryClient } from '@/app/query-client';
-import { initialAuthState, type SessionStatus, useAuthStore } from '@/features/auth/auth-store';
+import { type SessionStatus, useAuthStore } from '@/features/auth/auth-store';
 import { TEST_USER } from '@/test/auth-fixtures';
 import { locationOf, renderApp } from '@/test/render';
 
@@ -14,11 +14,6 @@ function renderAt(path: string, status: SessionStatus) {
   if (authenticated) queryClient.setQueryData(getAuthMeQueryKey(), TEST_USER);
   return renderApp(path);
 }
-
-beforeEach(() => {
-  useAuthStore.setState(initialAuthState);
-  queryClient.clear();
-});
 
 describe('routing', () => {
   it.each(['/', '/login'])('should show the loader on %s while the session is unknown', (path) => {

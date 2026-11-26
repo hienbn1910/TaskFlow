@@ -5,8 +5,8 @@ import { RequireAuth } from '@/app/guards/RequireAuth';
 import { AppShell } from '@/app/layouts/AppShell';
 import { PublicLayout } from '@/app/layouts/PublicLayout';
 import { RouteError } from '@/app/RouteError';
-import { LoginPage } from '@/features/auth/routes/LoginPage';
-import { RegisterPage } from '@/features/auth/routes/RegisterPage';
+import { SignInPage } from '@/features/auth/routes/SignInPage';
+import { SignUpPage } from '@/features/auth/routes/SignUpPage';
 import { HomePage } from '@/features/home/routes/HomePage';
 import { NotFoundPage } from '@/shared/ui/NotFoundPage';
 
@@ -30,8 +30,8 @@ export const routes: RouteObject[] = [
           {
             element: <PublicLayout />,
             children: [
-              { path: '/login', element: <LoginPage /> },
-              { path: '/register', element: <RegisterPage /> },
+              { path: '/login', element: <SignInPage /> },
+              { path: '/register', element: <SignUpPage /> },
             ],
           },
         ],

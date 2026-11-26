@@ -1,9 +1,7 @@
 import { screen } from '@testing-library/react';
 import { delay, http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { queryClient } from '@/app/query-client';
-import { initialAuthState, useAuthStore } from '@/features/auth/auth-store';
 import { startSession } from '@/features/auth/session';
 import { errorBody, REFRESH_URL, refreshBody, TEST_USER } from '@/test/auth-fixtures';
 import { locationOf, renderApp } from '@/test/render';
@@ -16,11 +14,6 @@ function boot(path: string) {
   void startSession();
   return renderApp(path);
 }
-
-beforeEach(() => {
-  useAuthStore.setState(initialAuthState);
-  queryClient.clear();
-});
 
 describe('boot', () => {
   it('should show the loader, then greet the User without requesting /auth/me', async () => {
