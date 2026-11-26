@@ -159,21 +159,21 @@ The only function that calls `POST /auth/refresh`. Used on boot and by the 401 i
 ## 11. Acceptance Criteria
 
 **Setup**
-- [ ] `pnpm lint && pnpm typecheck && pnpm test` pass at the root, for `api` and `web`, on a fresh clone (generation runs first).
-- [ ] `src/api/generated/` is not committed.
+- [x] `pnpm lint && pnpm typecheck && pnpm test` pass at the root, for `api` and `web`, on a fresh clone (generation runs first).
+- [x] `src/api/generated/` is not committed.
 
 **Session**
-- [ ] With a valid refresh cookie, opening `http://localhost:5173` shows the loading screen, then "Hello, {fullName}", without a flash of the login page.
-- [ ] Reloading the page keeps the User logged in.
-- [ ] Two tabs opened at the same time both end up logged in, and the User's sessions are not revoked (API log has no "reuse detected").
-- [ ] Without a cookie, `/` redirects to `/login?next=%2F`.
-- [ ] The access token is never in `localStorage`, `sessionStorage` or a non-HttpOnly cookie.
+- [x] With a valid refresh cookie, opening `http://localhost:5173` shows the loading screen, then "Hello, {fullName}", without a flash of the login page.
+- [x] Reloading the page keeps the User logged in.
+- [x] Two tabs opened at the same time both end up logged in, and the User's sessions are not revoked (API log has no "reuse detected").
+- [x] Without a cookie, `/` redirects to `/login?next=%2F`.
+- [x] The access token is never in `localStorage`, `sessionStorage` or a non-HttpOnly cookie.
 
 **HTTP client**
-- [ ] Five requests that get 401 together cause exactly one `POST /auth/refresh`, then each is retried once.
-- [ ] When the refresh returns 401, the store is `anonymous` and the query cache is empty.
+- [x] Five requests that get 401 together cause exactly one `POST /auth/refresh`, then each is retried once.
+- [x] When the refresh returns 401, the store is `anonymous` and the query cache is empty.
 
 **Routing and errors**
-- [ ] `/login?next=https://evil.example` sends an authenticated User to `/`, not to the other site.
-- [ ] An unknown path shows the not-found page.
-- [ ] A failed mutation shows a toast containing the `requestId`.
+- [x] `/login?next=https://evil.example` sends an authenticated User to `/`, not to the other site.
+- [x] An unknown path shows the not-found page.
+- [x] A failed mutation shows a toast containing the `requestId`.

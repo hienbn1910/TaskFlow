@@ -135,10 +135,11 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## Verification
 
-### - [ ] W8. Docs, manual checks, review, PR
+### - [x] W8. Docs, manual checks, review, PR
 
 | | |
 |---|---|
 | Docs | ADR-0034 point 3 (single flight + Web Locks), ADR-0033 (orval confirmed, envelope note), ADR-0011 (web versions); RULE.md §11 if the tree changed; CLAUDE.md checkbox |
 | Manual | API + `pnpm dev:web`; login through Swagger; on `localhost:5173`: loader then name; reload stays logged in; two tabs opened together stay logged in, API log has no "reuse detected"; no token in Web Storage; without cookie `/` → `/login?next=%2F`; `vite build` size noted |
 | Finish | Full suite at the root; `review-against-spec`; refactor; PR text (`pr` skill); knowledge summary in `notes/` |
+| Done | Docs: ADR-0034 point 3 rewritten (amended in M2), ADR-0033 (orval, envelope, hand-written error body), ADR-0011 web table, RULE.md §11 tree (`test/`), CLAUDE.md (checkbox, ADR rows, `pnpm dev:web`). Manual (Chrome-based browser, dev API): signed up through the Console on `localhost:5173` instead of Swagger (Swagger's origin `:3000` fails the API's Origin check, ADR-0020); all six checks passed: `/` without a valid cookie → `/login?next=%2F`; loader then "Hello, {fullName}"; reloads stay signed in; two windows reloaded together both signed in; Local and Session Storage empty. API log: no `GET /auth/me` in the whole session, no "reuse detected" from the browser (the only two came from a deliberate curl replay of a rotated cookie, which also proved that a replay revokes every session). Build: 470 kB JS / 143 kB gzip. Review (`review-against-spec`, two axes): fixed a 2xx non-JSON body resolving `undefined` (P1), retry count asserted (P2), generated refresh import banned by ESLint (P4), test lint parity (P3), no mock of an app module in the route error test (T1), `SignInPage` / `SignUpPage` (GLOSSARY avoids "Login", T2), shared reset and message (T4), names (T7), cycle comment (T6). Kept: status predicates (T5), the http ↔ session cycle (T6) |
