@@ -64,7 +64,7 @@ export function unwrapEnvelope(body: unknown): unknown {
 
 /** Builds the ApiError of a non-2xx response; a non-standard body (proxy page…) gets a generic message. */
 export async function toApiError(response: Response): Promise<ApiError> {
-  const body = errorBodySchema.safeParse(await readJson(response));
+  const body = errorBodySchema.safeParse(parseJson(await response.text()));
   if (!body.success) {
     return new ApiError({ status: response.status, message: GENERIC_MESSAGE });
   }
@@ -72,10 +72,8 @@ export async function toApiError(response: Response): Promise<ApiError> {
   return new ApiError({ status: response.status, message, details, requestId });
 }
 
-/** The parsed JSON body, or undefined when there is none or it is not JSON. */
-async function readJson(response: Response): Promise<unknown> {
-  const text = await response.text();
-  if (text === '') return undefined;
+/** The parsed JSON, or undefined when the text is not JSON. */
+function parseJson(text: string): unknown {
   try {
     return JSON.parse(text);
   } catch {
@@ -116,9 +114,12 @@ async function toResult<T>(response: Response): Promise<T> {
   if (!response.ok) {
     throw await toApiError(response);
   }
-  const body = await readJson(response);
+  const text = await response.text();
+  // Only an empty body (204) is "no data": a body that is not the JSON envelope (an HTML page
+  // from a misrouted rewrite) must fail, not resolve with undefined
+  if (text === '') return undefined as T;
   // The generated function states T from openapi.json; the envelope check guards the shape
-  return (body === undefined ? undefined : unwrapEnvelope(body)) as T;
+  return unwrapEnvelope(parseJson(text)) as T;
 }
 
 /** The orval mutator: every generated request function calls it (ADR-0033). */

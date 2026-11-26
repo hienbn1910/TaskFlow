@@ -35,6 +35,15 @@ describe('request', () => {
     await expect(request(URL, { method: 'POST' })).resolves.toBeUndefined();
   });
 
+  it('should throw a generic ApiError when a 2xx body is not JSON', async () => {
+    // A misconfigured rewrite serves the SPA's index.html with 200 for an /api URL
+    server.use(http.get(URL, () => new HttpResponse('<!doctype html><html></html>')));
+
+    const error = await errorOf(request(URL, { method: 'GET' }));
+
+    expect(error).toMatchObject({ status: 200, message: 'Unexpected response from the server' });
+  });
+
   it('should throw an ApiError with message and requestId from the standard body', async () => {
     server.use(
       http.get(URL, () => HttpResponse.json(errorBody(409, 'Already exists'), { status: 409 })),
