@@ -49,6 +49,20 @@ export default tseslint.config(
       'max-lines-per-function': ['error', { max: 30, skipBlankLines: true, skipComments: true }],
       'max-params': ['error', 3],
       'no-nested-ternary': 'error',
+      // Spec §5.2 — the generated refresh goes through `request` (Bearer + 401 retry): a failed
+      // refresh would start another one. Only `refreshSession()` may call POST /auth/refresh.
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@/api/generated/endpoints/auth/auth',
+              importNames: ['authRefresh', 'useAuthRefresh', 'getAuthRefreshMutationOptions'],
+              message: 'Refresh only through refreshSession() (features/auth/session.ts).',
+            },
+          ],
+        },
+      ],
       // RULE.md §11 — Security
       'no-restricted-properties': [
         'error',
@@ -63,6 +77,8 @@ export default tseslint.config(
       // describe() blocks naturally exceed 30 lines
       'max-lines-per-function': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
+      // expect(mock.method).toHaveBeenCalled() passes a method without its `this` (as in apps/api)
+      '@typescript-eslint/unbound-method': 'off',
     },
   },
 );
