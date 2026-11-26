@@ -20,3 +20,5 @@ WORKFLOW.md said "Zod schema shared with backend", but the monorepo has no share
 
 ## Consequences
 Breaking API changes follow expand → migrate → contract (ADR-0036): the deployed frontend must keep working against the new API until it is redeployed.
+
+The generated document can be wrong while the API is right: Zod → nestjs-zod → @nestjs/swagger → orval is a chain of translations. A contract test compares the type of every DTO property in the document with Zod's own JSON schema (`test/openapi.e2e-spec.ts`). Known gaps it caught in M2: a nullable property became an array (fixed by `nestjs-zod` 5.6); a string with several `.regex()` lost its `type` and then produced invalid orval code (fixed by `restorePatternTypes` in `openapi-document.ts`).

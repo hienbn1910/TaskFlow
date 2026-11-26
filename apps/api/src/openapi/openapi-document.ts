@@ -1,7 +1,12 @@
 import { join } from 'node:path';
 
 import type { INestApplication } from '@nestjs/common';
-import { DocumentBuilder, type OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import {
+  DocumentBuilder,
+  type OpenAPIObject,
+  type SchemaObject,
+  SwaggerModule,
+} from '@nestjs/swagger';
 import { cleanupOpenApiDoc } from 'nestjs-zod';
 
 import { REFRESH_COOKIE_NAME } from '@common/constants/auth.constant';
@@ -23,7 +28,41 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .addBearerAuth()
     .addCookieAuth(REFRESH_COOKIE_NAME)
     .build();
-  return cleanupOpenApiDoc(SwaggerModule.createDocument(app, config));
+  return restorePatternTypes(cleanupOpenApiDoc(SwaggerModule.createDocument(app, config)));
+}
+
+/**
+ * Zod writes a string with several `.regex()` as `{ type: 'string', minLength, allOf: [{ pattern }…] }`.
+ * Two tools break it (ADR-0033):
+ * - @nestjs/swagger deletes `type` from any property with `allOf` (schema-object-factory), so the
+ *   client got `unknown`. A `pattern` only constrains strings: the type is put back.
+ * - orval then emits `string().regex().and(string().regex()).min()`, and an intersection has no
+ *   `.min()`. Moving the length limits into `allOf` keeps every rule and gives valid code.
+ * Guarded by the contract test that compares every DTO property type with Zod's own JSON schema.
+ */
+export function restorePatternTypes(document: OpenAPIObject): OpenAPIObject {
+  for (const schema of Object.values(document.components?.schemas ?? {})) {
+    if (!('properties' in schema)) continue;
+    for (const property of Object.values(schema.properties ?? {})) {
+      if (!('$ref' in property) && isTypelessPatternList(property)) restoreString(property);
+    }
+  }
+  return document;
+}
+
+function isTypelessPatternList(property: SchemaObject): boolean {
+  if (property.type !== undefined || property.allOf === undefined) return false;
+  return property.allOf.every((part) => 'pattern' in part && !('type' in part));
+}
+
+function restoreString(property: SchemaObject): void {
+  const { minLength, maxLength, allOf = [] } = property;
+  const lengths = [{ minLength }, { maxLength }].filter(
+    (limit) => Object.values(limit)[0] !== undefined,
+  );
+  delete property.minLength;
+  delete property.maxLength;
+  Object.assign(property, { type: 'string', allOf: [...lengths, ...allOf] });
 }
 
 /**

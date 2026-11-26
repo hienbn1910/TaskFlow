@@ -325,15 +325,18 @@
             "type": "string"
           },
           "password": {
-            "minLength": 8,
             "allOf": [
+              {
+                "minLength": 8
+              },
               {
                 "pattern": "\\p{Lu}"
               },
               {
                 "pattern": "\\d"
               }
-            ]
+            ],
+            "type": "string"
           },
           "fullName": {
             "type": "string"
@@ -428,10 +431,10 @@
             "type": "string"
           },
           "avatarUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -464,15 +467,18 @@
             "minLength": 1
           },
           "newPassword": {
-            "minLength": 8,
             "allOf": [
+              {
+                "minLength": 8
+              },
               {
                 "pattern": "\\p{Lu}"
               },
               {
                 "pattern": "\\d"
               }
-            ]
+            ],
+            "type": "string"
           }
         },
         "required": [
