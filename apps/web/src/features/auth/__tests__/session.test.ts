@@ -35,15 +35,17 @@ beforeEach(() => {
 });
 
 describe('refreshSession', () => {
-  it('should send one refresh for five requests that get 401 together', async () => {
+  it('should send one refresh for five requests that get 401 together, then retry each once', async () => {
     store().signIn('old-token');
     const refresh = refreshAnswers(() => HttpResponse.json(refreshBody('new-token')));
+    const authHeaders: (string | null)[] = [];
     server.use(
-      http.get(THINGS_URL, ({ request: req }) =>
-        req.headers.get('Authorization') === 'Bearer new-token'
+      http.get(THINGS_URL, ({ request: req }) => {
+        authHeaders.push(req.headers.get('Authorization'));
+        return req.headers.get('Authorization') === 'Bearer new-token'
           ? HttpResponse.json({ success: true, data: 'ok' })
-          : HttpResponse.json(errorBody(401, 'Unauthorized'), { status: 401 }),
-      ),
+          : HttpResponse.json(errorBody(401, 'Unauthorized'), { status: 401 });
+      }),
     );
 
     const results = await Promise.all(
@@ -52,6 +54,9 @@ describe('refreshSession', () => {
 
     expect(refresh.count).toBe(1);
     expect(results).toEqual(['ok', 'ok', 'ok', 'ok', 'ok']);
+    // 5 first tries with the old token, 5 retries with the new one, nothing more
+    expect(authHeaders.filter((h) => h === 'Bearer old-token')).toHaveLength(5);
+    expect(authHeaders.filter((h) => h === 'Bearer new-token')).toHaveLength(5);
   });
 
   it('should store the new token and seed the User under the /auth/me key on 200', async () => {
