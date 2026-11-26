@@ -1,1 +1,26 @@
 @import 'tailwindcss';
+
+/* Design tokens (spec §3). Light theme only; Tailwind's default spacing scale and grays. */
+@theme {
+  /* System fonts: no web font to download */
+  --font-sans:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+  --color-brand-50: oklch(0.97 0.02 265);
+  --color-brand-100: oklch(0.93 0.04 265);
+  --color-brand-200: oklch(0.87 0.07 265);
+  --color-brand-300: oklch(0.78 0.11 265);
+  --color-brand-400: oklch(0.68 0.15 265);
+  --color-brand-500: oklch(0.59 0.18 265);
+  --color-brand-600: oklch(0.52 0.19 265);
+  --color-brand-700: oklch(0.45 0.17 265);
+  --color-brand-800: oklch(0.38 0.14 265);
+  --color-brand-900: oklch(0.31 0.11 265);
+
+  --color-danger: oklch(0.55 0.2 27);
+  --color-success: oklch(0.55 0.14 150);
+
+  /* Named radii: cards (panels, dialogs) and controls (inputs, buttons) */
+  --radius-card: 0.75rem;
+  --radius-control: 0.375rem;
+}

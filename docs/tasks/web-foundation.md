@@ -122,13 +122,14 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## UI
 
-### - [ ] W7. Layouts, tokens, errors, toasts
+### - [x] W7. Layouts, tokens, errors, toasts
 
 | | |
 |---|---|
 | Red (F4) | `routing.test.tsx`: a route element that throws → error page with a reload button |
 | Red (F6) | `src/app/__tests__/mutation-toast.test.tsx`: a mutation failing with `ApiError(409, …, requestId)` → toast containing the message and `Error ID: <requestId>`; with `meta: { toast: false }` → no toast; `ApiError(401)` → no toast |
 | Green | `MutationCache.onError` in `query-client.ts`, `<Toaster />`; `RouteError`; `AppShell` (top bar with `fullName`), `PublicLayout` (centred card); `@theme` tokens (spec §3); `ErrorState` |
+| Done | Extra: query retry policy `shouldRetryQuery` (no retry for a 4xx, at most 2 for 5xx / network / unknown; unit tested), needed for in-place errors to show fast. A non-`ApiError` gets the generic toast, never its own message. `RouteError` test mocks `HomePage` to throw inside the real route table (proves the root `errorElement` is wired) and checks the error text is not shown. Home error state shown in place with "Try again" (`ErrorState`), tested with MSW (404, then 200). `mutationMeta` typed through TanStack's `Register`. One `eslint-disable max-params`, justified: `MutationCache.onError` has the library's 5-parameter signature. Neutrals are Tailwind's grays. Mutation checks: opt-out ignored, 401 toasted, 4xx retried, no `errorElement`: each fails a test. Build: 470 kB JS / 143 kB gzip (sonner) |
 
 ---
 
