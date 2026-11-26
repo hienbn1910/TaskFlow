@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.0",
+  "openapi": "3.1.0",
   "paths": {
     "/api/v1/health": {
       "get": {
@@ -272,9 +272,7 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": [
-              "ok"
-            ]
+            "const": "ok"
           },
           "timestamp": {
             "type": "string",
@@ -293,24 +291,18 @@
         "properties": {
           "status": {
             "type": "string",
-            "enum": [
-              "ok"
-            ]
+            "const": "ok"
           },
           "checks": {
             "type": "object",
             "properties": {
               "database": {
                 "type": "string",
-                "enum": [
-                  "up"
-                ]
+                "const": "up"
               },
               "redis": {
                 "type": "string",
-                "enum": [
-                  "up"
-                ]
+                "const": "up"
               }
             },
             "required": [
@@ -333,15 +325,18 @@
             "type": "string"
           },
           "password": {
-            "minLength": 8,
             "allOf": [
+              {
+                "minLength": 8
+              },
               {
                 "pattern": "\\p{Lu}"
               },
               {
                 "pattern": "\\d"
               }
-            ]
+            ],
+            "type": "string"
           },
           "fullName": {
             "type": "string"
@@ -436,10 +431,10 @@
             "type": "string"
           },
           "avatarUrl": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -472,15 +467,18 @@
             "minLength": 1
           },
           "newPassword": {
-            "minLength": 8,
             "allOf": [
+              {
+                "minLength": 8
+              },
               {
                 "pattern": "\\p{Lu}"
               },
               {
                 "pattern": "\\d"
               }
-            ]
+            ],
+            "type": "string"
           }
         },
         "required": [

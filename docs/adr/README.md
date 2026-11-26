@@ -78,7 +78,7 @@ Grouped by the system design area they answer. The numbers they rely on are in W
 | [0031](0031-rate-limiting-before-deploy.md) | Rate and abuse limits before the API is public | Security, Reliability | Accepted |
 | [0032](0032-concurrency-rules.md) | Concurrency rules | Reliability | Accepted |
 | [0033](0033-api-contract-openapi-codegen.md) | Frontend ↔ backend contract via OpenAPI codegen | Architecture | Accepted |
-| [0034](0034-frontend-architecture.md) | Frontend architecture | Architecture | Accepted |
+| [0034](0034-frontend-architecture.md) | Frontend architecture | Architecture | Accepted, amended in M2 |
 | [0035](0035-observability.md) | Logs, request id, error tracking, health endpoints | Shipping, Reliability | Accepted |
 | [0036](0036-delivery-pipeline-and-database-operations.md) | CI/CD, migrations, two DB URLs, expand–contract | Shipping | Accepted |
 | [0037](0037-vertical-slice-milestones.md) | Vertical-slice milestones, deployed from M2 | Whole system | Accepted |
