@@ -1,30 +1,15 @@
 import { http, HttpResponse } from 'msw';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 
+import { queryClient } from '@/app/query-client';
 import { initialAuthState, useAuthStore } from '@/features/auth/auth-store';
-import { refreshSession } from '@/features/auth/session';
+import { errorBody, REFRESH_URL, refreshBody } from '@/test/auth-fixtures';
 import { server } from '@/test/server';
 
 import { ApiError, request } from '../http';
 
-// Stub until W4: the real refreshSession is tested against MSW there
-vi.mock('@/features/auth/session', () => ({ refreshSession: vi.fn() }));
-
 const URL = '/api/v1/things';
 const REQUEST_ID = '3f2b8c1e-9d4a-4f6b-8e2c-1a7d5b9c0e34';
-
-/** The API's standard error body (ADR-0001, ADR-0035). */
-function errorBody(statusCode: number, message: string, extra: object = {}) {
-  return {
-    success: false,
-    statusCode,
-    error: 'ERROR',
-    message,
-    timestamp: '2026-11-25T00:00:00.000Z',
-    requestId: REQUEST_ID,
-    ...extra,
-  };
-}
 
 /** The error `request` rejected with (fails the test if it resolved). */
 async function errorOf(promise: Promise<unknown>): Promise<ApiError> {
@@ -97,10 +82,11 @@ describe('request', () => {
 describe('request with an access token', () => {
   /** The Authorization header of every call the endpoint received, in order. */
   let authHeaders: (string | null)[];
+  /** `POST /auth/refresh` calls; the refresh answers 200 with `new-token` unless a test says so. */
+  let refreshCalls: number;
 
   /** The endpoint answers each call with the next status of the list. */
   function respondWith(...statuses: number[]) {
-    authHeaders = [];
     server.use(
       http.get(URL, ({ request: req }) => {
         authHeaders.push(req.headers.get('Authorization'));
@@ -112,14 +98,23 @@ describe('request with an access token', () => {
     );
   }
 
+  function refreshAnswers(status: number) {
+    server.use(
+      http.post(REFRESH_URL, () => {
+        refreshCalls += 1;
+        return status === 200
+          ? HttpResponse.json(refreshBody('new-token'))
+          : HttpResponse.json(errorBody(status, 'Session expired'), { status });
+      }),
+    );
+  }
+
   beforeEach(() => {
     useAuthStore.setState(initialAuthState);
-    // The refresh renews the token, like the real one on a 200
-    vi.mocked(refreshSession).mockReset();
-    vi.mocked(refreshSession).mockImplementation(async () => {
-      useAuthStore.getState().signIn('new-token');
-      await Promise.resolve();
-    });
+    queryClient.clear();
+    authHeaders = [];
+    refreshCalls = 0;
+    refreshAnswers(200);
   });
 
   it('should send the access token as a Bearer header', async () => {
@@ -137,7 +132,7 @@ describe('request with an access token', () => {
 
     await expect(request(URL, { method: 'GET' })).resolves.toEqual({ id: 't1' });
 
-    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(refreshCalls).toBe(1);
     expect(authHeaders).toEqual(['Bearer old-token', 'Bearer new-token']);
   });
 
@@ -148,21 +143,18 @@ describe('request with an access token', () => {
     const error = await errorOf(request(URL, { method: 'GET' }));
 
     expect(error.status).toBe(401);
-    expect(refreshSession).toHaveBeenCalledTimes(1);
+    expect(refreshCalls).toBe(1);
     expect(authHeaders).toHaveLength(2);
   });
 
   it('should throw the 401 without retrying when the refresh ends the session', async () => {
     useAuthStore.getState().signIn('old-token');
-    vi.mocked(refreshSession).mockImplementation(async () => {
-      useAuthStore.getState().signOut();
-      await Promise.resolve();
-    });
+    refreshAnswers(401);
     respondWith(401);
 
     const error = await errorOf(request(URL, { method: 'GET' }));
 
-    expect(error.status).toBe(401);
+    expect(error).toMatchObject({ status: 401, message: 'Unauthorized' });
     expect(authHeaders).toHaveLength(1);
   });
 
@@ -172,7 +164,23 @@ describe('request with an access token', () => {
     const error = await errorOf(request(URL, { method: 'GET' }));
 
     expect(error.status).toBe(401);
-    expect(refreshSession).not.toHaveBeenCalled();
+    expect(refreshCalls).toBe(0);
     expect(authHeaders).toEqual([null]);
+  });
+
+  it('should send the refresh without the expired token', async () => {
+    let refreshAuthorization: string | null = 'not called';
+    server.use(
+      http.post(REFRESH_URL, ({ request: req }) => {
+        refreshAuthorization = req.headers.get('Authorization');
+        return HttpResponse.json(refreshBody('new-token'));
+      }),
+    );
+    useAuthStore.getState().signIn('old-token');
+    respondWith(401, 200);
+
+    await request(URL, { method: 'GET' });
+
+    expect(refreshAuthorization).toBeNull();
   });
 });

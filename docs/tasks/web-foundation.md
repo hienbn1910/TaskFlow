@@ -88,13 +88,14 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## Session
 
-### - [ ] W4. ⚠️ `refreshSession`
+### - [x] W4. ⚠️ `refreshSession`
 
 | | |
 |---|---|
 | Red (F2) | `src/features/auth/__tests__/session.test.ts` (MSW): five `request` calls that get 401 together → exactly **one** `POST /auth/refresh`, then five retries; refresh 200 → store `authenticated` with the token, and the User is in the cache under the `/auth/me` query key; refresh 401 → store `anonymous`, token `null`, cache empty; network error during `startSession()` → `anonymous`, one refresh call only |
 | Red (F3) | `withRefreshLock`: with a fake `navigator.locks.request` it runs the callback inside the lock named `taskflow-refresh`; without `navigator.locks` it runs the callback directly |
 | Green | `refreshSession`, `startSession`, `withRefreshLock`; `rawRequest` in `http.ts` (no Bearer, no retry, plan §3.2); `src/app/query-client.ts` |
+| Done | Blocked first by a wrong contract (`avatarUrl` typed `string[]`, `password` `unknown`): fixed in the API with a contract test against Zod (separate commit, ADR-0033). The W3 tests now run through the real `refreshSession` (MSW refresh endpoint, `vi.mock` removed); extra cases: a non-401/403 failure keeps the session and rejects, a new refresh starts once the previous one settled, the refresh never carries the old Bearer. Shared fixtures in `src/test/auth-fixtures.ts`. Mutation checks: no single flight, in-flight never cleared, cache kept, 403 ignored, Bearer on refresh, lock ignored: each fails a test. Not done on purpose: a 401 arriving just after a refresh starts another (safe: the cookie is already rotated). Reviewed by the developer |
 
 ---
 

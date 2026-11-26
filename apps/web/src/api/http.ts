@@ -111,6 +111,16 @@ async function retryAfterRefresh(
   return token === null ? unauthorized : send(url, init, token);
 }
 
+/** The unwrapped data of a 2xx response, or the ApiError of any other. */
+async function toResult<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    throw await toApiError(response);
+  }
+  const body = await readJson(response);
+  // The generated function states T from openapi.json; the envelope check guards the shape
+  return (body === undefined ? undefined : unwrapEnvelope(body)) as T;
+}
+
 /** The orval mutator: every generated request function calls it (ADR-0033). */
 export async function request<T>(url: string, init: RequestInit): Promise<T> {
   const token = useAuthStore.getState().accessToken;
@@ -119,10 +129,13 @@ export async function request<T>(url: string, init: RequestInit): Promise<T> {
   if (response.status === 401 && token !== null) {
     response = await retryAfterRefresh(url, init, response);
   }
-  if (!response.ok) {
-    throw await toApiError(response);
-  }
-  const body = await readJson(response);
-  // The generated function states T from openapi.json; the envelope check guards the shape
-  return (body === undefined ? undefined : unwrapEnvelope(body)) as T;
+  return toResult<T>(response);
+}
+
+/**
+ * For the refresh call only (plan §3.2): no Bearer header and no 401 retry, so a failed
+ * refresh can never start another refresh.
+ */
+export async function rawRequest<T>(url: string, init: RequestInit): Promise<T> {
+  return toResult<T>(await send(url, init, null));
 }
