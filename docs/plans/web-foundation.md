@@ -87,7 +87,7 @@ refreshSession()
 `withRefreshLock(fn)`: `navigator.locks?.request('taskflow-refresh', fn) ?? fn()`. jsdom has no `navigator.locks`, so tests cover the fallback directly and the lock path with a fake `navigator.locks` that records the lock name and runs the callback (a test double of a browser API, a system boundary).
 
 ### 3.5 `next` validation
-Pure function `safeNext(value: string | null): string`: returns `value` only when it starts with `/` and the second character is neither `/` nor `\`; else `/`. Unit tested with `//evil.example`, `/\evil.example`, `https://evil.example`, `javascript:…`, `''`, `null`.
+Pure function `safeNext(value: string | null): string`: returns `value` only when it starts with `/` and the second character is neither `/` nor `\`, and it has no control character; else `/`. Unit tested with `//evil.example`, `/\evil.example`, `/\t/evil.example`, `https://evil.example`, `javascript:…`, `''`, `null`.
 
 ### 3.6 orval configuration
 `orval.config.ts`, two outputs from `../api/openapi.json`:

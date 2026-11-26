@@ -101,13 +101,14 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 
 ## Routing
 
-### - [ ] W5. ⚠️ Guards, `safeNext`, router
+### - [x] W5. ⚠️ Guards, `safeNext`, router
 
 | | |
 |---|---|
 | Red (F5) | `src/shared/lib/__tests__/safe-next.test.ts`: `/w/1?x=2` kept; `//evil.example`, `/\evil.example`, `https://evil.example`, `javascript:alert(1)`, `''`, `null` → `/` |
 | Red (F4) | `src/app/__tests__/routing.test.tsx` (memory router, store set directly): `unknown` → loader on `/` and `/login`; `anonymous` on `/` → redirected to `/login?next=%2F`; `authenticated` on `/login?next=%2Fsettings` → `/settings`; `authenticated` on `/login?next=%2F%2Fevil.example` → `/`; unknown path → not-found page |
 | Green | `safeNext`, `RequireAuth`, `GuestOnly`, `routes` (shared by `createBrowserRouter` and tests), `FullPageLoader`, `NotFoundPage`, placeholder `LoginPage`, `RegisterPage`, `HomePage` |
+| Done | Extra security case: a control character (`/\t/evil.example`) is rejected, because browsers strip tabs and newlines from URLs before parsing (spec §6 and plan §3.5 updated). Extra routes: `next` keeps the query (`/?tab=2`), a guest-only page for an anonymous User, the protected page for an authenticated User. `setup.ts` now calls Testing Library `cleanup` after each test (automatic only with Vitest globals, which are off): the first component tests saw the DOM of the previous test. W0 smoke test removed (routing tests cover it). Headings use the GLOSSARY verbs "Sign in" / "Sign up". Mutation checks: control characters, backslash, leading slash, `safeNext` in `GuestOnly`, query in `next`, loader while `unknown`: each fails a test. Reviewed by the developer |
 
 ### - [ ] W6. Boot and home
 

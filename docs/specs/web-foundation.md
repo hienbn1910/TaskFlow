@@ -120,7 +120,7 @@ The only function that calls `POST /auth/refresh`. Used on boot and by the 401 i
 
 - **Protected routes:** `unknown` → full-page loading screen; `anonymous` → redirect to `/login?next=<current path and query>`.
 - **Guest-only routes:** `unknown` → loading screen; `authenticated` → redirect to `next` when valid, else `/`.
-- **`next` validation:** accepted only when it starts with `/` and not with `//` or `/\`. Anything else falls back to `/` (no open redirect).
+- **`next` validation:** accepted only when it starts with `/` and not with `//` or `/\`, and has no control character (browsers strip tabs and newlines, so `/\t/evil.example` would become `//evil.example`). Anything else falls back to `/` (no open redirect).
 - The not-found page renders immediately, whatever the session status.
 
 ## 7. Errors and Notifications (2.16)
