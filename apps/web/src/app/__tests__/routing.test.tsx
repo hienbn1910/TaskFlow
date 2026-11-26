@@ -1,27 +1,23 @@
-import { render, screen } from '@testing-library/react';
-import { createMemoryRouter, RouterProvider } from 'react-router';
+import { screen } from '@testing-library/react';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { getAuthMeQueryKey } from '@/api/generated/endpoints/auth/auth';
+import { queryClient } from '@/app/query-client';
 import { initialAuthState, type SessionStatus, useAuthStore } from '@/features/auth/auth-store';
+import { TEST_USER } from '@/test/auth-fixtures';
+import { locationOf, renderApp } from '@/test/render';
 
-import { routes } from '../routes';
-
-/** Renders the real route table at `path` with the session already in `status`. */
+/** Renders the app at `path` with the session already in `status`, as a refresh leaves it. */
 function renderAt(path: string, status: SessionStatus) {
-  useAuthStore.setState({ status, accessToken: status === 'authenticated' ? 'token' : null });
-  const router = createMemoryRouter(routes, { initialEntries: [path] });
-  render(<RouterProvider router={router} />);
-  return router;
-}
-
-/** Where the router ended up, path and query. */
-function locationOf(router: ReturnType<typeof createMemoryRouter>): string {
-  const { pathname, search } = router.state.location;
-  return pathname + search;
+  const authenticated = status === 'authenticated';
+  useAuthStore.setState({ status, accessToken: authenticated ? 'token' : null });
+  if (authenticated) queryClient.setQueryData(getAuthMeQueryKey(), TEST_USER);
+  return renderApp(path);
 }
 
 beforeEach(() => {
   useAuthStore.setState(initialAuthState);
+  queryClient.clear();
 });
 
 describe('routing', () => {
@@ -49,7 +45,7 @@ describe('routing', () => {
   it('should show the protected page to an authenticated User', () => {
     renderAt('/', 'authenticated');
 
-    expect(screen.getByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Hello, Hien Bui' })).toBeInTheDocument();
   });
 
   it('should show a guest-only page to an anonymous User', () => {
@@ -61,7 +57,7 @@ describe('routing', () => {
   it('should send an authenticated User from login to a valid next', async () => {
     const router = renderAt('/login?next=%2F', 'authenticated');
 
-    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Hello, Hien Bui' })).toBeInTheDocument();
     expect(locationOf(router)).toBe('/');
   });
 
@@ -76,7 +72,7 @@ describe('routing', () => {
   it('should ignore a next that leaves the app', async () => {
     const router = renderAt('/login?next=%2F%2Fevil.example', 'authenticated');
 
-    expect(await screen.findByRole('heading', { name: 'Home' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Hello, Hien Bui' })).toBeInTheDocument();
     expect(locationOf(router)).toBe('/');
   });
 

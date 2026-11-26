@@ -110,12 +110,13 @@ W3 uses a stub `refreshSession` (records calls) so it can be tested before W4; W
 | Green | `safeNext`, `RequireAuth`, `GuestOnly`, `routes` (shared by `createBrowserRouter` and tests), `FullPageLoader`, `NotFoundPage`, placeholder `LoginPage`, `RegisterPage`, `HomePage` |
 | Done | Extra security case: a control character (`/\t/evil.example`) is rejected, because browsers strip tabs and newlines from URLs before parsing (spec §6 and plan §3.5 updated). Extra routes: `next` keeps the query (`/?tab=2`), a guest-only page for an anonymous User, the protected page for an authenticated User. `setup.ts` now calls Testing Library `cleanup` after each test (automatic only with Vitest globals, which are off): the first component tests saw the DOM of the previous test. W0 smoke test removed (routing tests cover it). Headings use the GLOSSARY verbs "Sign in" / "Sign up". Mutation checks: control characters, backslash, leading slash, `safeNext` in `GuestOnly`, query in `next`, loader while `unknown`: each fails a test. Reviewed by the developer |
 
-### - [ ] W6. Boot and home
+### - [x] W6. Boot and home
 
 | | |
 |---|---|
 | Red (F4) | `src/app/__tests__/boot.test.tsx` (MSW, the real `startSession` + router): refresh 200 → loader first, then `Hello, Hien Bui` with no `GET /auth/me` request; refresh 401 → login page at `/login?next=%2F` |
 | Green | `startSession()` called from `main.tsx` before render; `HomePage` reads `useGetMe()` |
+| Done | A plain `useAuthMe()` failed the "no `/auth/me`" test: with the default `staleTime: 0` the seeded User is stale at once and refetched on mount. Feature hook `useCurrentUser()` (`staleTime: Infinity`; the User changes only through their own actions, which update the cache). `AppProviders` (QueryClientProvider) shared by `main.tsx` and `src/test/render.tsx` (`renderApp`, `locationOf`); routing tests moved to it and seed the User like a refresh. Home error state shown in place; its test waits for the query retry policy (W7). Build: 435 kB JS / 134 kB gzip |
 
 ---
 
