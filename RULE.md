@@ -485,10 +485,10 @@ GET    /api/v1/workspaces/:workspaceId/channels/:channelId/messages
 ### Folder Structure
 ```
 src/
-├── app/                       # Router, providers, layouts, error boundary
+├── app/                       # Router, providers, layouts, guards, error page, query client
 ├── api/
 │   ├── generated/             # Client, hooks and Zod schemas from openapi.json (gitignored)
-│   └── http.ts                # HTTP client: credentials, single-flight refresh, request id
+│   └── http.ts                # HTTP client: credentials, Bearer, 401 → refresh → retry once, ApiError
 ├── features/
 │   └── <feature>/             # auth, workspaces, channels, messages, boards, notifications
 │       ├── components/
@@ -499,7 +499,8 @@ src/
 ├── shared/
 │   ├── ui/                    # Reusable presentational components
 │   └── lib/                   # Pure helpers (formatting dates in local time, cursors…)
-└── main.tsx
+├── test/                      # Test setup, MSW server, fixtures, render with providers
+└── main.tsx                   # Boot refresh (once, before render), then render
 ```
 
 ### State

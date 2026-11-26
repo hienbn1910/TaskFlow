@@ -207,7 +207,7 @@ Read first: ADR-0006, 0019, 0020, 0023, 0031, 0033, 0034, 0035, 0036.
 Branch plan: `chore/api-production-readiness` → `feature/web-foundation` → `feature/web-auth` → `chore/deploy-pipeline`.
 
 - [x] `chore/api-production-readiness`: timestamptz + partial unique email migration, `DIRECT_DATABASE_URL`, cookie `SameSite=Lax` + Origin check, `trust proxy` + `no-store`, rate limiting, pino logs + request id, `/health/ready`, `openapi.json` export
-- [ ] `feature/web-foundation`: Vite + React + TS strict, Tailwind, router, generated API client, single-flight refresh, in-memory auth store, Vite proxy
+- [x] `feature/web-foundation`: Vite + React + TS strict, Tailwind, router, generated API client, single-flight refresh, in-memory auth store, Vite proxy
 - [ ] `feature/web-auth`: login, register, profile, change password, logout
 - [ ] `chore/deploy-pipeline`: Neon + Render + Key Value (Singapore), Vercel proxy, GitHub Actions, Dependabot, UptimeRobot, Sentry; measure the WORKFLOW.md §3 risks
 
@@ -231,7 +231,7 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [8](docs/adr/0008-websocket-event-names.md) | WebSocket event names | Superseded by 25 |
 | [9](docs/adr/0009-kanban-position-type.md) | Kanban `position` type (proposal: Float, gap-based) | Deferred to M5 |
 | [10](docs/adr/0010-bull-vs-bullmq.md) | Bull vs BullMQ | Superseded by 27 |
-| [11](docs/adr/0011-package-versions.md) | NestJS 11, TS 5.9, Prisma 7.10, Zod 4, `@nestjs/jwt` 11.x | Accepted |
+| [11](docs/adr/0011-package-versions.md) | NestJS 11, TS 5.9, Prisma 7.10, Zod 4, `@nestjs/jwt` 11.x; web: React 19, Router 8, Vite 8, ESLint 9 | Accepted |
 | [12](docs/adr/0012-prisma-7-specifics.md) | `prisma7.config.ts`, client in `src/generated/prisma`, `adapter-pg` | Accepted, amended by 36 |
 | [13](docs/adr/0013-response-shaping-zod-response.md) | `@ZodResponse` on every endpoint | Accepted |
 | [14](docs/adr/0014-jest-commonjs.md) | Jest runs CommonJS; `pnpm typecheck` checks tests | Accepted |
@@ -253,8 +253,8 @@ Every decision is an ADR in [`docs/adr/`](docs/adr/README.md): context, decision
 | [30](docs/adr/0030-file-uploads.md) | Signed direct upload to Cloudinary; attachments `authenticated`; no SVG/HTML | Accepted |
 | [31](docs/adr/0031-rate-limiting-before-deploy.md) | `@nestjs/throttler` in memory from M2; limits table | Accepted |
 | [32](docs/adr/0032-concurrency-rules.md) | Uniqueness in DB; atomic invitation accept; single owner + transfer; last write wins | Accepted |
-| [33](docs/adr/0033-api-contract-openapi-codegen.md) | Committed `openapi.json` → generated FE client; socket payloads = REST DTOs | Accepted |
-| [34](docs/adr/0034-frontend-architecture.md) | Server state in TanStack Query only; ids in URL; single-flight refresh; one realtime module | Accepted |
+| [33](docs/adr/0033-api-contract-openapi-codegen.md) | Committed `openapi.json` (OpenAPI 3.1) → orval client, hooks and Zod; `http.ts` unwraps the envelope; socket payloads = REST DTOs | Accepted |
+| [34](docs/adr/0034-frontend-architecture.md) | Server state in TanStack Query only; ids in URL; single-flight refresh + Web Lock across tabs; one realtime module | Accepted, amended in M2 |
 | [35](docs/adr/0035-observability.md) | pino JSON logs, request id, Sentry, liveness (no DB) vs readiness | Accepted |
 | [36](docs/adr/0036-delivery-pipeline-and-database-operations.md) | CI → migrate → deploy hook; pooled vs direct URL; expand–contract; no preview deploys | Accepted |
 | [37](docs/adr/0037-vertical-slice-milestones.md) | Every milestone = BE + FE + tests, deployed from M2 | Accepted |
@@ -271,6 +271,7 @@ docker compose up -d               # postgres (5432), postgres-test (5433), redi
 pnpm --filter api db:migrate       # apply migrations to dev DB
 pnpm --filter api db:migrate:test  # apply migrations to test DB
 pnpm dev                           # start API in watch mode
+pnpm dev:web                       # start the web app on http://localhost:5173 (proxies /api to :3000)
 pnpm lint && pnpm typecheck && pnpm test && pnpm test:e2e   # must all pass before a PR
 ```
 
