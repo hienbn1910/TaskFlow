@@ -55,6 +55,7 @@ Project skills live in `.claude/skills/` (index, sources and every change from u
 | 8 Review | `review-against-spec` | Diff vs spec and vs RULE.md / GLOSSARY / ADRs, two separate reports |
 | 10 PR | `pr` | Ready-to-paste title and body (Summary, Evidence, Merge Danger, Decisions); the developer opens the PR |
 | Long sessions | `/handoff` | Handoff document in `%TEMP%` for the next session |
+| Visual system (developer-invoked) | `/hallmark` | Once at the start of `feature/web-auth`: settles and locks the design system (`apps/web/src/tokens.css` + `DESIGN.md`); `audit` / `redesign` in M7. App-screen scope, system fonts, no network |
 
 Not used on purpose: `implement`, `implement-spec`, `triage`, `wayfinder`, `to-spec`, `to-tickets`, `codebase-design` and others (reasons in the README). A skill never overrides RULE.md, an ADR or this file: on conflict, fix the skill in a branch.
 

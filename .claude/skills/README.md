@@ -10,6 +10,14 @@ Skills marked "vendored" are copied from **[mattpocock/skills](https://github.co
 - Only `SKILL.md` and the files it links to are copied. `agents/openai.yaml` (Codex configuration) is not.
 - Each vendored skill is **adapted** to this project. Every change from upstream is listed in the table below, and in the skill itself under a final section "Adaptations for TaskFlow".
 
+### Third-party: Hallmark
+
+`hallmark` is copied from **[Nutlope/hallmark](https://github.com/Nutlope/hallmark)** (MIT License, © 2026 Hallmark contributors, full text in [hallmark/LICENSE](hallmark/LICENSE)).
+
+- Upstream commit: `04977e15f3dfd6ee4b74c887dac3eb52665d6c92` (installed 2026-11-28 with the `skills` CLI).
+- Copied whole (`SKILL.md`, `references/`, `scripts/`), except what is gitignored: `references/themes/*.jpg` (5 MB of theme pictures), `agents/openai.yaml` (Codex configuration), `skills-lock.json` (the CLI's lock file) and `.hallmark/` (run files).
+- **Do not run `skills update`:** it would overwrite the adaptations. Update by hand (rule 4 below).
+
 ## Skills
 
 | Skill | Upstream path | Invoked by | Used in (RULE.md §0) | Changes from upstream | Status |
@@ -23,6 +31,7 @@ Skills marked "vendored" are copied from **[mattpocock/skills](https://github.co
 | `review-against-spec` | `skills/engineering/code-review/` | model | Step 8 | Renamed (`name:` line only) to avoid the built-in `/code-review`. "Adaptations": no issue tracker (spec from `docs/specs|plans|tasks`, WORKFLOW §6–§7, ADRs), default fixed point `main`, standards = RULE.md + CLAUDE.md "Do NOT" + GLOSSARY + ADRs, skip ESLint-enforced rules, Middle Man / ADR-required interfaces not flagged, sequential fallback without sub-agents, Vietnamese report, no fixing during review | Vendored |
 | `pr` | `skills/engineering/pr/` (+ `CREDITS.md`, verbatim) | model | Step 10 | "Adaptations": the agent writes a ready-to-paste title and body, the developer opens the PR; RULE §8 titles; English; no AI attribution; extra "Decisions" section; project evidence (test counts, red → green); project one-way doors (destructive migrations, merged ADRs, secrets / cookies / isolation); stacked-branch note | Vendored |
 | `handoff` | `skills/productivity/handoff/` | user (`/handoff`) | Long sessions | "Adaptations": file name and full path in `%TEMP%`; always records milestone, branch, last commit, task position and test-first state, open questions, merged branches to delete; suggests this repo's skills; no copy of working preferences | Vendored |
+| `hallmark` | `skills/hallmark/` (Nutlope/hallmark; `references/`, `scripts/` verbatim) | user (`/hallmark`) | Visual system: once at the start of `feature/web-auth` (lock the system); audits in M7 | `disable-model-invocation: true`. "Adaptations": every screen is an app screen (no hero, no photographs); used once to lock the system, audit / redesign in M7; values in `apps/web/src/tokens.css` and rules in root `DESIGN.md`, never duplicated in `@theme`; system font stack (spec web-foundation §3); no network, installs or settings changes (no `imagegen`, `photos`, hooks); theme pictures not committed; RULE.md flow, GLOSSARY terms and screen states still apply; Vietnamese questions | Vendored (third-party) |
 
 ## Deliberately not used
 
